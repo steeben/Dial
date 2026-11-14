@@ -21,6 +21,24 @@ data class ArtistRef(
     val browseId: String? = null,
 )
 
+/**
+ * What a podcast episode's row on its show's page says beyond a track's.
+ *
+ * @property description The episode's notes, as its publisher wrote them.
+ * @property released When it came out, in YouTube Music's own words: "Oct 24",
+ * "Nov 14, 2025", or "1d ago" for the newest.
+ * @property playedPercent How much of it the account has played, 0 to 100;
+ * 0 when it was not started, or when no account is signed in.
+ * @property showId The `MPSP…` page of the show it is an episode of, where
+ * the row is away from that page and so names its show ("New episodes").
+ */
+data class EpisodeInfo(
+    val description: String? = null,
+    val released: String? = null,
+    val playedPercent: Int = 0,
+    val showId: String? = null,
+)
+
 /** A playable YouTube Music track. */
 data class Song(
     val videoId: String,
@@ -141,6 +159,8 @@ data class Song(
      * non-history rows (e.g. search results, library).
      */
     val feedbackToken: String? = null,
+    /** What a podcast episode's row says beyond a track's; null for anything else. */
+    val episode: EpisodeInfo? = null,
 ) {
     /** Legacy derived property: true if and only if [queueTier] is [QueueTier.AUTOPLAY]. */
     val fromAutoplay: Boolean get() = queueTier == QueueTier.AUTOPLAY
@@ -410,7 +430,16 @@ data class ShelfItem(
      * picture the player can show. Drawn as a 16:9 card, as the web player does.
      */
     val isVideo: Boolean = false,
+    /** A podcast episode's runtime, as "2:43:00" or "34:00"; null for anything else. */
+    val durationText: String? = null,
 )
+
+/** What the browse id of a podcast show's page starts with. */
+const val PODCAST_SHOW_PREFIX = "MPSP"
+
+/** Whether this card is a podcast show: it opens the show's page, and plays nothing by itself. */
+val ShelfItem.isPodcastShow: Boolean
+    get() = videoId == null && browseId?.startsWith(PODCAST_SHOW_PREFIX) == true
 
 /** How a shelf's items are laid out — the web player's `ShelfLayout`, by the same rules. */
 enum class ShelfLayout {

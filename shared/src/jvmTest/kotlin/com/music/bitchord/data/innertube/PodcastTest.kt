@@ -73,6 +73,51 @@ class PodcastTest {
     }
 
     @Test
+    fun showPage_readsWhatAnEpisodeRowSaysBeyondATracks() {
+        val row = json(
+            """{ "contents": [ ${episode(
+                "NlVu0P1RdHs", "Ross Edgley", "2 hr 43 min",
+                """, "description": { "runs": [ { "text": "How to build endurance.\n\nSponsors below. " } ] }""",
+            ).replace(
+                """"durationText"""",
+                """"playbackProgressPercentage": 37, "durationText"""",
+            )} ] }""",
+        )
+        val episode = InnertubeParser.collectSongsDeep(row, "Huberman Lab").single().episode!!
+        assertEquals("How to build endurance.\n\nSponsors below.", episode.description)
+        assertEquals("2d ago", episode.released)
+        assertEquals(37, episode.playedPercent)
+
+        // Not started, and nothing written about it.
+        val plain = InnertubeParser.collectSongsDeep(showPage, "Huberman Lab").first().episode!!
+        assertNull(plain.description)
+        assertEquals(0, plain.playedPercent)
+    }
+
+    @Test
+    fun playlistOfEpisodes_listsThem_eachWithItsShow() {
+        val page = json(
+            """
+            { "contents": { "twoColumnBrowseResultsRenderer": { "secondaryContents": { "sectionListRenderer": {
+              "contents": [ { "musicPlaylistShelfRenderer": { "contents": [
+                ${episode(
+                "TPXdcOJRmRc", "World News Tonight", "20 min",
+                """, "secondTitle": { "runs": [ { "text": "ABC World News Tonight", "navigationEndpoint": {
+                    "browseEndpoint": { "browseId": "MPSPPLQOa26lW-uI8hXwg0nCxcX2ukSk_iCP3p" } } } ] }""",
+            )},
+                ${episode("eYSOabR3YP0", "Essentials: Supplementation", "34 min")}
+              ] } } ]
+            } } } } }
+            """,
+        )
+        val songs = InnertubeParser.parsePlaylistShelf(page)!!.songs
+        assertEquals(listOf("TPXdcOJRmRc", "eYSOabR3YP0"), songs.map { it.videoId })
+        assertEquals("MPSPPLQOa26lW-uI8hXwg0nCxcX2ukSk_iCP3p", songs[0].episode?.showId)
+        assertEquals("ABC World News Tonight", songs[0].artist)
+        assertNull(songs[1].episode?.showId)
+    }
+
+    @Test
     fun continuation_hasNoHeaderSoTheShowIsCarriedIn() {
         val page = json(
             """
@@ -134,5 +179,133 @@ class PodcastTest {
         assertEquals("Y566_T-YlNQ", song.videoId)
         assertEquals("Figuring Out With Raj Shamani", song.artist)
         assertFalse(song.isVideo)
+    }
+
+    private fun showCard(playlistId: String, title: String, publisher: String) = """
+        { "musicTwoRowItemRenderer": {
+          "thumbnailRenderer": { "musicThumbnailRenderer": { "thumbnail": { "thumbnails": [
+            { "url": "https://i.ytimg.com/pl_c/$playlistId/small.jpg", "width": 226, "height": 226 },
+            { "url": "https://i.ytimg.com/pl_c/$playlistId/large.jpg", "width": 544, "height": 544 }
+          ] } } },
+          "title": { "runs": [ { "text": "$title" } ] },
+          "subtitle": { "runs": [ { "text": "$publisher", "navigationEndpoint": { "browseEndpoint": {
+            "browseId": "UC0123456789"
+          } } } ] },
+          "navigationEndpoint": { "browseEndpoint": {
+            "browseId": "MPSP$playlistId",
+            "browseEndpointContextSupportedConfigs": { "browseEndpointContextMusicConfig": {
+              "pageType": "MUSIC_PAGE_TYPE_PODCAST_SHOW_DETAIL_PAGE"
+            } }
+          } }
+        } }"""
+
+    private fun carousel(title: String, items: String, more: String = "") = """
+        { "musicCarouselShelfRenderer": {
+          "header": { "musicCarouselShelfBasicHeaderRenderer": {
+            "title": { "runs": [ { "text": "$title" } ] }$more
+          } },
+          "contents": [ $items ]
+        } }"""
+
+    /** Home under its Podcasts chip: shows picked for the listener, then episodes by category. */
+    private val podcastsHome = json(
+        """
+        { "contents": { "singleColumnBrowseResultsRenderer": { "tabs": [ { "tabRenderer": { "content": {
+          "sectionListRenderer": {
+            "contents": [
+              ${carousel(
+                "Shows for you",
+                showCard("PLaaa", "The Daily", "The New York Times") + "," +
+                    showCard("PLbbb", "The Video Game Show", "Some Studio"),
+            )},
+              ${carousel(
+                "Comedy",
+                episode(
+                    "TPXdcOJRmRc", "A funny one", "1 hr 5 min",
+                    """, "secondTitle": { "runs": [ { "text": "Laugh Lab" } ] }""",
+                ) + "," + episode("eYSOabR3YP0", "No show named", "34 min"),
+            )}
+            ],
+            "continuations": [ { "nextContinuationData": { "continuation": "NEXT" } } ]
+          }
+        } } } ] } } }
+        """,
+    )
+
+    @Test
+    fun podcastsHome_hasAShelfOfShowsAndAShelfOfEpisodes() {
+        val shelves = InnertubeParser.parsePodcastShelves(podcastsHome)
+        assertEquals(listOf("Shows for you", "Comedy"), shelves.map { it.title })
+
+        val shows = shelves[0]
+        assertEquals(com.music.bitchord.data.model.ShelfLayout.CARDS, shows.layout)
+        // A show with "video" in its name is still a show.
+        assertEquals(listOf("MPSPPLaaa", "MPSPPLbbb"), shows.items.map { it.browseId })
+        assertEquals(listOf("The New York Times", "Some Studio"), shows.items.map { it.subtitle })
+        assertEquals("https://i.ytimg.com/pl_c/PLaaa/large.jpg", shows.items.first().thumbnailUrl)
+        assertFalse(shows.items.any { it.videoId != null })
+
+        val episodes = shelves[1]
+        assertEquals(com.music.bitchord.data.model.ShelfLayout.VIDEO, episodes.layout)
+        assertEquals(listOf("TPXdcOJRmRc", "eYSOabR3YP0"), episodes.items.map { it.videoId })
+        assertEquals(listOf("Laugh Lab", ""), episodes.items.map { it.subtitle })
+        assertEquals(listOf("1:05:00", "34:00"), episodes.items.map { it.durationText })
+        assertEquals("NEXT", InnertubeParser.continuationToken(podcastsHome))
+    }
+
+    @Test
+    fun podcastsContinuation_isReadWhereverItsShelvesLand() {
+        val page = json(
+            """
+            { "continuationContents": { "sectionListContinuation": { "contents": [
+              ${carousel(
+                "News",
+                episode("NlVu0P1RdHs", "Today", "20 min"),
+                """, "moreContentButton": { "buttonRenderer": { "navigationEndpoint": { "browseEndpoint": {
+                  "browseId": "FEmusic_top_non_music_audio_episodes"
+                } } } }""",
+            )},
+              ${carousel("Popular shows", showCard("PLccc", "Up First", "NPR"))},
+              ${carousel(
+                "Albums for you",
+                """{ "musicTwoRowItemRenderer": {
+                  "title": { "runs": [ { "text": "An album" } ] },
+                  "navigationEndpoint": { "browseEndpoint": { "browseId": "MPREb_123" } }
+                } }""",
+            )}
+            ] } } }
+            """,
+        )
+        val shelves = InnertubeParser.parsePodcastShelves(page)
+        // A shelf with neither shows nor episodes is not a podcasts shelf.
+        assertEquals(listOf("News", "Popular shows"), shelves.map { it.title })
+        assertEquals("FEmusic_top_non_music_audio_episodes", shelves[0].moreBrowseId)
+        assertEquals("MPSPPLccc", shelves[1].items.single().browseId)
+        assertNull(InnertubeParser.continuationToken(page))
+    }
+
+    @Test
+    fun runtime_isReadInTheAppsLanguage() {
+        val read = InnertubeParser::episodeRuntime
+        // English, as before.
+        assertEquals("2:43:00", read(" • 2 hr 43 min"))
+        assertEquals("34:00", read("34 min"))
+        assertEquals("0:45", read("45 sec"))
+        assertEquals("2:00:00", read("2 hours"))
+        // Other languages: hours and minutes by their numbers.
+        assertEquals("1:05:00", read(" • 1 h 5 min"))
+        assertEquals("1:05:00", read("1 Std. 5 Min."))
+        assertEquals("1:05:00", read("1時間5分"))
+        assertEquals("1:05:00", read("1 ч 5 мин"))
+        // One number is minutes, unless the word beside it is one for hours.
+        assertEquals("20:00", read("20 Min."))
+        assertEquals("20:00", read("20分"))
+        assertEquals("20:00", read("20 мин"))
+        assertEquals("2:00:00", read("2 Std."))
+        assertEquals("2:00:00", read("2時間"))
+        assertEquals("2:00:00", read("2 ч"))
+        assertEquals("2:00:00", read("2 horas"))
+        assertNull(read(""))
+        assertNull(read("Live"))
     }
 }
