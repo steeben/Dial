@@ -1,5 +1,10 @@
 package com.music.bitchord.desktop
 
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.layout
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.bitchord.ui.components.LikeHeart
 import com.music.bitchord.ui.components.LocalShelfRowChrome
@@ -4020,6 +4025,7 @@ fun BitChordDesktopApp() {
                             downloadedIds = downloads.map(Song::videoId).toSet(),
                             downloadInProgress = downloadInProgress,
                             contentPadding = contentPadding,
+                            onBack = ::goBack,
                         )
                         destination == DesktopDestination.LISTEN_NOW -> {
                             val speedDialsOn by DialSettings.speedDials.collectAsState()
@@ -6792,6 +6798,7 @@ private fun DesktopCollectionPage(
     downloadedIds: Set<String>,
     downloadInProgress: Set<String>,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val songs = collection.songs
     // The phone's "search this list": a filter over the rows already loaded.
@@ -6829,140 +6836,174 @@ private fun DesktopCollectionPage(
         val seconds = songs.sumOf { it.durationText.durationMillis() / 1_000L }
         if (seconds > 0) add(formatCollectionDuration(seconds))
     }.joinToString(" • ").uppercase()
+    val cover = collection.thumbnailUrl ?: songs.firstOrNull()?.thumbnailUrl
+    // The phone's page colour: a wash from the art that eases in once the art is read, under a
+    // banner of the art itself that fades into it.
+    val palette = rememberDesktopArtworkPalette(cover)
+    val wash by animateColorAsState(
+        collectionWash(palette.primary),
+        tween(700, easing = LinearOutSlowInEasing),
+        label = "collectionWash",
+    )
+    val accent by animateColorAsState(
+        collectionAccent(palette.primary),
+        tween(700, easing = LinearOutSlowInEasing),
+        label = "collectionAccent",
+    )
+    val haze = remember { HazeState() }
+    val listState = rememberLazyListState()
     DesktopPageScaffold(contentPadding) {
+      Box(
+        Modifier.fillMaxSize().drawBehind {
+            // The wash: the art's colour under the banner, fading to black further down.
+            val top = CollectionBannerHeight.toPx()
+            drawRect(Brush.verticalGradient(0f to wash, 1f to wash, startY = 0f, endY = top))
+            drawRect(
+                Brush.verticalGradient(0f to wash, 1f to Color.Black, startY = top, endY = top + 700.dp.toPx()),
+                topLeft = Offset(0f, top),
+            )
+        },
+      ) {
         LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().hazeSource(haze),
             contentPadding = pagePadding(
-                start = DesktopPageGutter,
-                top = DesktopPageGutter,
-                end = DesktopPageGutter,
+                start = CollectionSideGutter,
+                top = 0.dp,
+                end = CollectionSideGutter,
                 bottom = 32.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().padding(bottom = 36.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // The services hang motion artwork off the release, so a page for one asks for
-                    // it directly rather than picking a track and hoping it sits on the right
-                    // edition.
-                    val albumCanvas by produceState<DesktopCanvasArtwork?>(null, collection.title, animatedCanvas) {
-                        value = if (!animatedCanvas) {
-                            null
-                        } else {
-                            withContext(Dispatchers.IO) {
-                                DesktopCanvasClient.lookupAlbum(
-                                    collection.title,
-                                    songs.firstOrNull()?.artist.orEmpty(),
+            item(key = "collection-header") {
+                val albumCanvas by produceState<DesktopCanvasArtwork?>(null, collection.title, animatedCanvas) {
+                    value = if (!animatedCanvas) {
+                        null
+                    } else {
+                        withContext(Dispatchers.IO) {
+                            DesktopCanvasClient.lookupAlbum(collection.title, songs.firstOrNull()?.artist.orEmpty())
+                        }
+                    }
+                }
+                Box(Modifier.fillMaxWidth().height(CollectionBannerHeight + 150.dp)) {
+                    // The banner runs the page's full width, past its side gutters.
+                    Box(
+                        Modifier
+                            .layout { measurable, constraints ->
+                                val grow = (CollectionSideGutter * 2).roundToPx()
+                                val placeable = measurable.measure(
+                                    constraints.copy(
+                                        minWidth = constraints.maxWidth + grow,
+                                        maxWidth = constraints.maxWidth + grow,
+                                    ),
+                                )
+                                layout(constraints.maxWidth, placeable.height) {
+                                    placeable.place(-CollectionSideGutter.roundToPx(), 0)
+                                }
+                            }
+                            .height(CollectionBannerHeight),
+                    ) {
+                        DesktopArtwork(
+                            cover,
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                                .drawWithContent {
+                                    drawContent()
+                                    drawRect(
+                                        Brush.verticalGradient(0.55f to Color.Black, 1f to Color.Transparent),
+                                        blendMode = BlendMode.DstIn,
+                                    )
+                                },
+                            contentScale = ContentScale.Crop,
+                            px = 1280,
+                        )
+                        Box(
+                            Modifier.fillMaxSize().background(
+                                Brush.verticalGradient(
+                                    0f to Color.Black.copy(alpha = 0.10f),
+                                    0.4f to Color.Transparent,
+                                    1f to wash,
+                                ),
+                            ),
+                        )
+                    }
+                    Row(
+                        Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(bottom = 30.dp),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Box(
+                            Modifier
+                                .size(150.dp)
+                                .shadow(18.dp, RoundedCornerShape(14.dp))
+                                .clip(RoundedCornerShape(14.dp))
+                                .border(GlassEdgeWidth, GlassEdgeColor, RoundedCornerShape(14.dp)),
+                        ) {
+                            DesktopArtwork(cover, Modifier.fillMaxSize(), px = 400)
+                            albumCanvas?.let { DesktopCanvasView(it.url, Modifier.fillMaxSize(), fallbackUrl = it.fallbackUrl) }
+                        }
+                        Spacer(Modifier.width(26.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                collection.title,
+                                color = Color.White,
+                                fontSize = 46.sp,
+                                lineHeight = 50.sp,
+                                fontWeight = FontWeight.W800,
+                                letterSpacing = (-1).sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (credit.isNotBlank()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(credit, color = accent, fontSize = 20.sp, fontWeight = FontWeight.W600, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            if (metadata.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    metadata,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.W600,
+                                    letterSpacing = 1.4.sp,
                                 )
                             }
                         }
-                    }
-                    Box(Modifier.size(286.dp).clip(RoundedCornerShape(8.dp))) {
-                        DesktopArtwork(
-                            collection.thumbnailUrl ?: songs.firstOrNull()?.thumbnailUrl,
-                            Modifier.fillMaxSize(),
-                        )
-                        albumCanvas?.let {
-                            DesktopCanvasView(it.url, Modifier.fillMaxSize(), fallbackUrl = it.fallbackUrl)
-                        }
-                    }
-                    Spacer(Modifier.width(30.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            typeLabel.uppercase(),
-                            color = DesktopSecondary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.2.sp,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            collection.title,
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (credit.isNotBlank()) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                credit,
-                                color = DesktopAccent,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        if (metadata.isNotBlank()) {
-                            Spacer(Modifier.height(8.dp))
-                            Text(metadata, color = DesktopSecondary, style = MaterialTheme.typography.bodySmall)
-                        }
-                        Spacer(Modifier.height(24.dp))
-                        // The phone's release controls, in its order: Shuffle, Play, search this
-                        // list, and everything else behind the overflow — downloading a release is
-                        // done once, finding a track on it is done while reading the page.
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            DesktopCircleButton(BitChordIcons.Shuffle, DesktopStrings["shuffle", "Shuffle"], onClick = { onShuffle(songs) })
-                            DesktopPlayPill(
-                                label = DesktopStrings["play", "Play"],
-                                onClick = { if (songs.isNotEmpty()) onPlaySongs(songs, 0) },
-                                iconOnly = true,
-                            )
-                            DesktopCircleButton(
-                                if (searching) Icons.Rounded.Close else BitChordIcons.Search,
-                                if (searching) DesktopStrings["close_search", "Close search"] else DesktopStrings["search_this_list", "Search this list"],
-                                onClick = {
-                                    searching = !searching
-                                    if (!searching) listQuery = ""
-                                },
-                            )
-                            Box {
-                                DesktopCircleButton(Icons.Rounded.MoreHoriz, DesktopStrings["more", "More"], onClick = { moreOpen = true })
-                                DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
-                                    DropdownMenuItem(
-                                        text = { Text(DesktopStrings["download_all", "Download all"]) },
-                                        leadingIcon = { Icon(BitChordIcons.Download, null) },
-                                        onClick = {
-                                            moreOpen = false
-                                            onDownloadAll(songs)
-                                        },
-                                    )
-                                    onShare?.let { share ->
-                                        DropdownMenuItem(
-                                            text = { Text(DesktopStrings["share", "Share"]) },
-                                            leadingIcon = { Icon(Icons.Rounded.Share, null) },
-                                            onClick = {
-                                                moreOpen = false
-                                                share()
-                                            },
-                                        )
+                        Spacer(Modifier.width(18.dp))
+                        // The phone's release controls: Shuffle and Search in glass, Play in the page's colour.
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CollectionGlassButton(haze, Modifier.size(96.dp, 52.dp), onClick = { onShuffle(songs) }) {
+                                Icon(BitChordIcons.Shuffle, DesktopStrings["shuffle", "Shuffle"], tint = Color.White, modifier = Modifier.size(24.dp))
+                            }
+                            CollectionGlassButton(haze, Modifier.size(52.dp), onClick = {
+                                searching = !searching
+                                if (!searching) listQuery = ""
+                            }) {
+                                Icon(
+                                    if (searching) Icons.Rounded.Close else BitChordIcons.Search,
+                                    if (searching) DesktopStrings["close_search", "Close search"] else DesktopStrings["search_this_list", "Search this list"],
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                            val playPress = remember { MutableInteractionSource() }
+                            Row(
+                                Modifier
+                                    .size(170.dp, 52.dp)
+                                    .shadow(14.dp, RoundedCornerShape(26.dp), ambientColor = accent, spotColor = accent)
+                                    .clip(RoundedCornerShape(26.dp))
+                                    .background(accent)
+                                    .clickable(interactionSource = playPress, indication = null) {
+                                        if (songs.isNotEmpty()) onPlaySongs(songs, 0)
                                     }
-                                    onRename?.let { rename ->
-                                        DropdownMenuItem(
-                                            text = { Text(DesktopStrings["rename", "Rename"]) },
-                                            leadingIcon = { Icon(Icons.Rounded.Edit, null) },
-                                            onClick = {
-                                                moreOpen = false
-                                                rename()
-                                            },
-                                        )
-                                    }
-                                    onDelete?.let { delete ->
-                                        DropdownMenuItem(
-                                            text = { Text(DesktopStrings["delete", "Delete"]) },
-                                            leadingIcon = { Icon(Icons.Rounded.Delete, null) },
-                                            onClick = {
-                                                moreOpen = false
-                                                delete()
-                                            },
-                                        )
-                                    }
-                                }
+                                    .pressBounceSoft(playPress),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                val ink = if (accent.luminance() > 0.55f) Color.Black else Color.White
+                                Icon(Icons.Rounded.PlayArrow, null, tint = ink, modifier = Modifier.size(26.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(DesktopStrings["play", "Play"], color = ink, fontSize = 17.sp, fontWeight = FontWeight.W700)
                             }
                         }
                     }
@@ -7016,6 +7057,111 @@ private fun DesktopCollectionPage(
                 }
             }
         }
+        // The phone's floating glass: Back at the top left, the page's tools at the top right.
+        if (onBack != null) {
+            CollectionGlassButton(haze, Modifier.padding(start = 18.dp, top = 18.dp).size(46.dp), onClick = onBack) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, DesktopStrings["back", "Back"], tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+        }
+        Box(Modifier.align(Alignment.TopEnd).padding(end = 18.dp, top = 18.dp)) {
+            CollectionGlassButton(haze, Modifier.size(46.dp), onClick = { moreOpen = true }) {
+                Icon(Icons.Rounded.MoreHoriz, DesktopStrings["more", "More"], tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(DesktopStrings["download_all", "Download all"]) },
+                    leadingIcon = { Icon(BitChordIcons.Download, null) },
+                    onClick = {
+                        moreOpen = false
+                        onDownloadAll(songs)
+                    },
+                )
+                onShare?.let { share ->
+                    DropdownMenuItem(
+                        text = { Text(DesktopStrings["share", "Share"]) },
+                        leadingIcon = { Icon(Icons.Rounded.Share, null) },
+                        onClick = {
+                            moreOpen = false
+                            share()
+                        },
+                    )
+                }
+                onRename?.let { rename ->
+                    DropdownMenuItem(
+                        text = { Text(DesktopStrings["rename", "Rename"]) },
+                        leadingIcon = { Icon(Icons.Rounded.Edit, null) },
+                        onClick = {
+                            moreOpen = false
+                            rename()
+                        },
+                    )
+                }
+                onDelete?.let { delete ->
+                    DropdownMenuItem(
+                        text = { Text(DesktopStrings["delete", "Delete"]) },
+                        leadingIcon = { Icon(Icons.Rounded.Delete, null) },
+                        onClick = {
+                            moreOpen = false
+                            delete()
+                        },
+                    )
+                }
+            }
+        }
+      }
+    }
+}
+
+/** The album, playlist and artist pages' side gutter, as the desktop concept has it. */
+private val CollectionSideGutter = 44.dp
+private val CollectionBannerHeight = 470.dp
+
+/** The page's wash from its art: the art's colour, darkened to sit under white text. */
+private fun collectionWash(color: Color): Color {
+    val hsb = java.awt.Color.RGBtoHSB((color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt(), null)
+    return Color(java.awt.Color.HSBtoRGB(hsb[0], (hsb[1] * 0.85f).coerceAtMost(0.8f), hsb[2].coerceIn(0.18f, 0.32f)))
+}
+
+/** The page's accent from its art: the art's colour, lifted to read on the dark wash. */
+private fun collectionAccent(color: Color): Color {
+    val hsb = java.awt.Color.RGBtoHSB((color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt(), null)
+    return Color(java.awt.Color.HSBtoRGB(hsb[0], hsb[1].coerceIn(0.35f, 0.85f), hsb[2].coerceIn(0.75f, 1f)))
+}
+
+/** A round or pill button of the phone's clear glass over the page, with the press bounce. */
+@Composable
+private fun CollectionGlassButton(
+    haze: HazeState,
+    modifier: Modifier,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(percent = 50)
+    val press = remember { MutableInteractionSource() }
+    Box(
+        modifier
+            .shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = 0.4f), spotColor = Color.Black.copy(alpha = 0.4f))
+            .clickable(interactionSource = press, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.matchParentSize().clearLiquidGlass(shape, haze))
+        Box(Modifier.matchParentSize().glassHighlight(shape))
+        Box(Modifier.pressBounce(press)) { content() }
+    }
+}
+
+/** A gentler press for a wide button: in to 94% and back on a soft spring. */
+@Composable
+private fun Modifier.pressBounceSoft(press: MutableInteractionSource): Modifier {
+    val pressed by press.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed) 0.94f else 1f,
+        spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow),
+        label = "pressSoft",
+    )
+    return graphicsLayer {
+        scaleX = scale
+        scaleY = scale
     }
 }
 
@@ -7046,19 +7192,33 @@ private fun DesktopCollectionSongRow(
     // A Spotify track still being matched to YouTube Music, or with no match: listed, but there is
     // nothing yet to play, like, save or remove.
     val unresolved = song.isUnresolvedSpotify
+    val rowHover = remember { MutableInteractionSource() }
+    val rowHovered by rowHover.collectIsHoveredAsState()
     Row(
         Modifier
             .fillMaxWidth()
+            .height(74.dp)
+            .drawBehind {
+                drawLine(
+                    Color.White.copy(alpha = 0.07f),
+                    Offset(10.dp.toPx(), size.height - 0.5.dp.toPx()),
+                    Offset(size.width - 10.dp.toPx(), size.height - 0.5.dp.toPx()),
+                    1.dp.toPx(),
+                )
+            }
             .alpha(if (song.isMatchMissing) 0.45f else 1f)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (striped) Color.White.copy(alpha = 0.04f) else Color.Transparent)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (rowHovered) Color.White.copy(alpha = 0.07f) else Color.Transparent)
+            .hoverable(rowHover)
             .clickable(enabled = !unresolved) { onClick(song) }
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val nowPlaying = song.isNowPlaying()
         Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) {
-            if (song.isMatchPending) {
+            if (rowHovered && !unresolved && !song.isMatchPending) {
+                Icon(Icons.Rounded.PlayArrow, null, tint = Color.White, modifier = Modifier.size(20.dp))
+            } else if (song.isMatchPending) {
                 CircularProgressIndicator(color = DesktopSecondary, strokeWidth = 1.5.dp, modifier = Modifier.size(12.dp))
             } else {
                 Text(
@@ -7075,21 +7235,23 @@ private fun DesktopCollectionSongRow(
             DesktopArtwork(song.thumbnailUrl, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), px = ROW_ART_PX)
             Spacer(Modifier.width(12.dp))
         }
-        Text(
-            song.title,
-            Modifier.weight(0.42f),
-            color = if (nowPlaying) Color.White else Color.White.copy(alpha = 0.75f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontWeight = FontWeight.Medium,
-        )
-        Text(
-            song.artist,
-            Modifier.weight(0.20f).padding(horizontal = 8.dp),
-            color = DesktopSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(Modifier.weight(0.62f)) {
+            Text(
+                song.title,
+                color = Color.White.copy(alpha = if (nowPlaying) 1f else 0.92f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.W600,
+            )
+            Text(
+                song.artist,
+                color = Color.White.copy(alpha = 0.55f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 14.sp,
+            )
+        }
         // Every row of an album is on that album; the column would only repeat the page's title.
         if (collectionType != BrowseType.ALBUM) {
             Text(
