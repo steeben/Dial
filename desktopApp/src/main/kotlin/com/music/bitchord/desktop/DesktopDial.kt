@@ -33,3 +33,45 @@ internal fun withSpeedDial(
     val feed = shelves.filterNot(::isDial)
     return UiState.Success(if (dial.isEmpty()) feed else listOf(HomeShelf(SPEED_DIAL_TITLE, dial)) + feed)
 }
+
+/** Whether [item] is one of the mixes YouTube Music builds (a `RDTMAK` / `RDCLAK` playlist, or a radio). */
+private fun ShelfItem.isMix(): Boolean {
+    val id = browseId?.removePrefix("VL") ?: return false
+    return videoId == null && (id.startsWith("RDTMAK") || id.startsWith("RDCLAK") || id.startsWith("RDAMPL") || id.startsWith("RDEM"))
+}
+
+/** Whether [item] is an artist's channel. */
+private fun ShelfItem.isArtistTile(): Boolean = videoId == null && browseId?.startsWith("UC") == true
+
+/**
+ * The three dials for the desktop's dials column, in order: the speed dial,
+ * the Mixes Dial and the artists' dial. Until the desktop deals mixes the way
+ * the phone does, the Mixes Dial is the mixes in the feed; the artists' dial
+ * is its pins, then the artists in the feed.
+ */
+internal fun desktopDials(
+    feed: UiState<List<HomeShelf>>,
+    speedDialsOn: Boolean,
+    mixesDialOn: Boolean,
+    speedPins: List<ShelfItem>,
+    artistPins: List<ShelfItem>,
+): List<List<ShelfItem>> {
+    val shelves = (feed as? UiState.Success)?.data.orEmpty()
+    val all = shelves.flatMap { it.items }
+    val speed = if (speedDialsOn) {
+        (withSpeedDial(feed, true, speedPins) as? UiState.Success)?.data
+            ?.firstOrNull { it.title.equals(SPEED_DIAL_TITLE, ignoreCase = true) }?.items.orEmpty()
+    } else {
+        emptyList()
+    }
+    val hidden = DialSettings.hiddenFromDial.value
+    val mixes = if (mixesDialOn) {
+        all.filter { it.isMix() && it.browseId !in hidden }.distinctBy { it.browseId }
+    } else {
+        emptyList()
+    }
+    val artists = (artistPins + all.filter { it.isArtistTile() })
+        .filter { it.browseId !in hidden }
+        .distinctBy { it.browseId }
+    return listOf(speed, mixes, artists).map { it.take(DIAL_PAGE_TILES) }
+}

@@ -225,6 +225,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -3003,7 +3004,128 @@ fun BitChordDesktopApp() {
             LocalContentColor provides Color.White,
             LocalNowPlaying provides selectedSong,
         ) {
-            DesktopFrame(
+            // The phone's player for [current], as the player sheet and the player column show it.
+            fun playerSongFor(current: Song): Song {
+                return trackLinks?.takeIf { it.videoId == current.videoId }
+                    ?.let { extra ->
+                        current.copy(
+                            artistId = current.artistId ?: extra.artistId,
+                            // Same as on the phone: the watch-queue lookup
+                            // is what carries a channel per credited
+                            // artist, so it is what makes every name in
+                            // the credit line openable.
+                            artists = current.artists.ifEmpty { extra.artists },
+                            albumId = current.albumId ?: extra.albumId,
+                            albumName = current.albumName ?: extra.albumName,
+                        )
+                    }
+                    ?: current
+            }
+
+            @Composable
+            fun NowPlayingFor(current: Song, windowWidth: Dp, windowHeight: Dp) {
+                val playerSong = playerSongFor(current)
+                NowPlayingScreen(
+                    song = playerSong,
+                    isPlaying = playback.isPlaying,
+                    isLoading = playback.isLoading,
+                    position = playerPosition,
+                    durationMs = playback.durationMs,
+                    audioVersionSwitching = false,
+                    qualityUpgraded = false,
+                    queue = liveQueue.songs,
+                    queueIndex = liveQueue.index,
+                    hasPrevious = liveQueue.hasPrevious,
+                    hasNext = liveQueue.hasNext,
+                    repeatMode = when (repeatMode) {
+                        DesktopRepeatMode.OFF -> RepeatModes.OFF
+                        DesktopRepeatMode.ONE -> RepeatModes.ONE
+                        DesktopRepeatMode.ALL -> RepeatModes.ALL
+                    },
+                    shuffleEnabled = shuffle,
+                    autoplayEnabled = DesktopAutoplay.enabled(partyState, autoplay),
+                    signedIn = youtubeSignedIn,
+                    accountName = activeAccount?.name?.takeIf(String::isNotBlank),
+                    likeStatus = when (current.videoId) {
+                        in likedIds -> LikeStatus.LIKE
+                        in dislikedIds -> LikeStatus.DISLIKE
+                        else -> LikeStatus.INDIFFERENT
+                    },
+                    onToggleLike = { toggleLike(current) },
+                    onPlayPause = ::togglePlayPauseFromUser,
+                    onNext = ::playNext,
+                    onPrevious = ::playPrevious,
+                    onBlockedControl = {
+                        DesktopPlayerHost.showMessage("Only the party host can change playback")
+                    },
+                    onSeek = ::seekPlayer,
+                    onSeekFraction = { fraction ->
+                        val duration = playbackEngine.state.value.durationMs
+                        if (duration > 0) seekPlayer((fraction * duration).toLong())
+                    },
+                    onToggleShuffle = { setShuffle(!shuffle) },
+                    // The phone's order: off, all, one.
+                    onCycleRepeat = {
+                        repeatMode = when (repeatMode) {
+                            DesktopRepeatMode.OFF -> DesktopRepeatMode.ALL
+                            DesktopRepeatMode.ALL -> DesktopRepeatMode.ONE
+                            DesktopRepeatMode.ONE -> DesktopRepeatMode.OFF
+                        }
+                        persistence.saveString("repeat_mode", repeatMode.name)
+                    },
+                    onToggleAutoplay = {
+                        setAutoplay(!DesktopAutoplay.enabled(DesktopListenTogether.state.value, autoplay))
+                    },
+                    onJumpTo = ::playQueueIndex,
+                    onRemoveFromQueue = ::removeFromQueue,
+                    onMoveInQueue = ::moveInQueue,
+                    onClearQueue = ::clearQueue,
+                    onOpenMenu = { playerMenuOpen = true },
+                    onOpenAlbum = { id ->
+                        overlays.nowPlaying = false
+                        openAlbum(id)
+                    },
+                    // The lead credit carries the track's own channel
+                    // id and opens straight away; anyone else on the
+                    // line has no id, so the page is found from the
+                    // name — and only when the answer is that name
+                    // exactly, so a fragment like "2115" opens nothing
+                    // rather than White 2115.
+                    onOpenArtist = { id, name ->
+                        overlays.nowPlaying = false
+                        if (id != null) {
+                            openArtist(id, name)
+                        } else {
+                            scope.launch {
+                                YtMusicRepository.findArtistPageId(name).getOrNull()
+                                    ?.let { found -> openArtist(found, name) }
+                            }
+                        }
+                    },
+                    onOpenPlaybackSource = {
+                        val id = playerSong.playbackSourceId
+                        overlays.nowPlaying = false
+                        if (playerSong.playbackSourceType == PlaybackSourceType.BROWSE && id != null) {
+                            openAlbum(id)
+                        }
+                    },
+                    onListenTogether = {
+                        overlays.nowPlaying = false
+                        overlays.listenTogether = true
+                    },
+                    lyrics = sharedLyrics,
+                    lyricsSource = sharedLyricsSource,
+                    lyricsProviderStates = providerStates,
+                    onSelectLyricsProvider = { source -> lyricsOnly = source.label },
+                    lyricsUnavailable = sharedLyricsUnavailable,
+                    lyricsOffsetOpen = false,
+                    onDismissLyricsOffset = {},
+                    windowWidth = windowWidth,
+                    windowHeight = windowHeight,
+                )
+            }
+
+            DialFrame(
                 // The phone's page is black, not the near-black of its cards.
                 containerColor = DesktopBackground,
                 // Only Replay dresses itself unless ambient backdrop is on; everywhere else the chrome sits on the plain surface.
@@ -3037,6 +3159,10 @@ fun BitChordDesktopApp() {
                         }
                         DesktopPlatform.isMac && event.isMetaPressed && event.key == Key.Comma -> {
                             openSettings()
+                            true
+                        }
+                        event.isCtrlPressed && event.key == Key.K -> {
+                            searchFocusRequested = true
                             true
                         }
                         DesktopPlatform.isMac && event.isMetaPressed && event.key == Key.F -> {
@@ -3118,13 +3244,12 @@ fun BitChordDesktopApp() {
                         onBack = ::goBack,
                     )
                 },
-                sidebar = {
-                    DesktopSidebar(
-                        destination = destination,
-                        settingsOpen = overlays.settingsPage != null,
-                        accountPlaylists = sidebarAccountPlaylists,
-                        localPlaylists = playlists,
-                        openedCollectionId = openedCollection?.browseId,
+                titleBar = {
+                    DialTitleBar(
+                        canGoBack = navHistory.isNotEmpty(),
+                        onBack = ::goBack,
+                        canGoForward = false,
+                        onForward = {},
                         query = query,
                         onQueryChange = { text ->
                             editQuery(text)
@@ -3133,12 +3258,45 @@ fun BitChordDesktopApp() {
                             }
                         },
                         onSearch = ::search,
-                        onDestinationSelected = ::selectDestination,
-                        onOpenAccountPlaylist = { openShelfItem(it, PLAYLISTS_SHELF) },
-                        onOpenLocalPlaylist = ::openPlaylist,
-                        onOpenSettings = ::openSettings,
                         focusSearch = searchFocusRequested,
                         onSearchFocused = { searchFocusRequested = false },
+                        onOpenSettings = ::openSettings,
+                        accountAvatar = activeAccount?.avatar
+                            ?: activeAccount?.profiles?.firstOrNull()?.avatar,
+                        onOpenAccounts = { overlays.accounts = true },
+                    )
+                },
+                left = { columnModifier ->
+                    val speedDialsOn by DialSettings.speedDials.collectAsState()
+                    val mixesDialOn by DialSettings.mixesDial.collectAsState()
+                    val speedPins by DialSettings.speedDialPins.collectAsState()
+                    val artistPins by DialSettings.artistDialPins.collectAsState()
+                    val hidden by DialSettings.hiddenFromDial.collectAsState()
+                    val labelsOn by DialSettings.dialLabels.collectAsState()
+                    val labelOverrides by DialSettings.dialHiddenLabels.collectAsState()
+                    val dials = remember(homeState, speedDialsOn, mixesDialOn, speedPins, artistPins, hidden) {
+                        desktopDials(homeState, speedDialsOn, mixesDialOn, speedPins, artistPins)
+                    }
+                    DialColumn(
+                        dials = dials,
+                        labelShown = { item -> labelsOn != (item.speedDialId in labelOverrides) },
+                        onTileClick = { item -> openShelfItem(item, SPEED_DIAL_TITLE) },
+                        selectedNav = when {
+                            overlays.settingsPage != null -> null
+                            destination == DesktopDestination.LISTEN_NOW -> DialNavItem.HOME
+                            destination == DesktopDestination.EXPLORE -> DialNavItem.EXPLORE
+                            destination == DesktopDestination.LIBRARY -> DialNavItem.LIBRARY
+                            else -> null
+                        },
+                        onNav = { item ->
+                            when (item) {
+                                DialNavItem.HOME -> selectDestination(DesktopDestination.LISTEN_NOW)
+                                DialNavItem.EXPLORE -> selectDestination(DesktopDestination.EXPLORE)
+                                DialNavItem.LIBRARY -> selectDestination(DesktopDestination.LIBRARY)
+                                DialNavItem.PODCASTS -> DesktopPlayerHost.showMessage("Podcasts are coming to Dial on the desktop")
+                            }
+                        },
+                        modifier = columnModifier,
                     )
                 },
                 bottomBar = { compact ->
@@ -3153,38 +3311,8 @@ fun BitChordDesktopApp() {
                         onNext = ::playNext,
                     )
                 },
-                trailing = {
-                    val current = selectedSong
-                    DesktopSidePanelColumn(
-                        panel = overlays.sidePanel.takeIf { current != null },
-                        onClose = { overlays.sidePanel = null },
-                    ) { which ->
-                        if (current == null) return@DesktopSidePanelColumn
-                        when (which) {
-                            DesktopSidePanel.LYRICS -> LyricsSidePanel(
-                                song = current,
-                                isPlaying = playback.isPlaying,
-                                position = playerPosition,
-                                lyrics = sharedLyrics,
-                                lyricsSource = sharedLyricsSource,
-                                lyricsProviderStates = providerStates,
-                                onSelectLyricsProvider = { source -> lyricsOnly = source.label },
-                                lyricsUnavailable = sharedLyricsUnavailable,
-                                onSeek = ::seekPlayer,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            DesktopSidePanel.QUEUE -> QueueSidePanel(
-                                queue = liveQueue.songs,
-                                queueIndex = liveQueue.index,
-                                autoplayEnabled = DesktopAutoplay.enabled(partyState, autoplay),
-                                onJumpTo = ::playQueueIndex,
-                                onRemove = ::removeFromQueue,
-                                onMove = ::moveInQueue,
-                                onClear = ::clearQueue,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                    }
+                right = selectedSong?.let { current ->
+                    { width, height -> NowPlayingFor(current, width, height) }
                 },
                 overlay = {
                     DesktopPlayerSheet(
@@ -3195,118 +3323,8 @@ fun BitChordDesktopApp() {
                         },
                     ) { windowWidth, windowHeight ->
                         val current = selectedSong ?: return@DesktopPlayerSheet
-                        val playerSong = trackLinks?.takeIf { it.videoId == current.videoId }
-                            ?.let { extra ->
-                                current.copy(
-                                    artistId = current.artistId ?: extra.artistId,
-                                    // Same as on the phone: the watch-queue lookup
-                                    // is what carries a channel per credited
-                                    // artist, so it is what makes every name in
-                                    // the credit line openable.
-                                    artists = current.artists.ifEmpty { extra.artists },
-                                    albumId = current.albumId ?: extra.albumId,
-                                    albumName = current.albumName ?: extra.albumName,
-                                )
-                            }
-                            ?: current
-                        NowPlayingScreen(
-                            song = playerSong,
-                            isPlaying = playback.isPlaying,
-                            isLoading = playback.isLoading,
-                            position = playerPosition,
-                            durationMs = playback.durationMs,
-                            audioVersionSwitching = false,
-                            qualityUpgraded = false,
-                            queue = liveQueue.songs,
-                            queueIndex = liveQueue.index,
-                            hasPrevious = liveQueue.hasPrevious,
-                            hasNext = liveQueue.hasNext,
-                            repeatMode = when (repeatMode) {
-                                DesktopRepeatMode.OFF -> RepeatModes.OFF
-                                DesktopRepeatMode.ONE -> RepeatModes.ONE
-                                DesktopRepeatMode.ALL -> RepeatModes.ALL
-                            },
-                            shuffleEnabled = shuffle,
-                            autoplayEnabled = DesktopAutoplay.enabled(partyState, autoplay),
-                            signedIn = youtubeSignedIn,
-                            accountName = activeAccount?.name?.takeIf(String::isNotBlank),
-                            likeStatus = when (current.videoId) {
-                                in likedIds -> LikeStatus.LIKE
-                                in dislikedIds -> LikeStatus.DISLIKE
-                                else -> LikeStatus.INDIFFERENT
-                            },
-                            onToggleLike = { toggleLike(current) },
-                            onPlayPause = ::togglePlayPauseFromUser,
-                            onNext = ::playNext,
-                            onPrevious = ::playPrevious,
-                            onBlockedControl = {
-                                DesktopPlayerHost.showMessage("Only the party host can change playback")
-                            },
-                            onSeek = ::seekPlayer,
-                            onSeekFraction = { fraction ->
-                                val duration = playbackEngine.state.value.durationMs
-                                if (duration > 0) seekPlayer((fraction * duration).toLong())
-                            },
-                            onToggleShuffle = { setShuffle(!shuffle) },
-                            // The phone's order: off, all, one.
-                            onCycleRepeat = {
-                                repeatMode = when (repeatMode) {
-                                    DesktopRepeatMode.OFF -> DesktopRepeatMode.ALL
-                                    DesktopRepeatMode.ALL -> DesktopRepeatMode.ONE
-                                    DesktopRepeatMode.ONE -> DesktopRepeatMode.OFF
-                                }
-                                persistence.saveString("repeat_mode", repeatMode.name)
-                            },
-                            onToggleAutoplay = {
-                                setAutoplay(!DesktopAutoplay.enabled(DesktopListenTogether.state.value, autoplay))
-                            },
-                            onJumpTo = ::playQueueIndex,
-                            onRemoveFromQueue = ::removeFromQueue,
-                            onMoveInQueue = ::moveInQueue,
-                            onClearQueue = ::clearQueue,
-                            onOpenMenu = { playerMenuOpen = true },
-                            onOpenAlbum = { id ->
-                                overlays.nowPlaying = false
-                                openAlbum(id)
-                            },
-                            // The lead credit carries the track's own channel
-                            // id and opens straight away; anyone else on the
-                            // line has no id, so the page is found from the
-                            // name — and only when the answer is that name
-                            // exactly, so a fragment like "2115" opens nothing
-                            // rather than White 2115.
-                            onOpenArtist = { id, name ->
-                                overlays.nowPlaying = false
-                                if (id != null) {
-                                    openArtist(id, name)
-                                } else {
-                                    scope.launch {
-                                        YtMusicRepository.findArtistPageId(name).getOrNull()
-                                            ?.let { found -> openArtist(found, name) }
-                                    }
-                                }
-                            },
-                            onOpenPlaybackSource = {
-                                val id = playerSong.playbackSourceId
-                                overlays.nowPlaying = false
-                                if (playerSong.playbackSourceType == PlaybackSourceType.BROWSE && id != null) {
-                                    openAlbum(id)
-                                }
-                            },
-                            onListenTogether = {
-                                overlays.nowPlaying = false
-                                overlays.listenTogether = true
-                            },
-                            lyrics = sharedLyrics,
-                            lyricsSource = sharedLyricsSource,
-                            lyricsProviderStates = providerStates,
-                            onSelectLyricsProvider = { source -> lyricsOnly = source.label },
-                            lyricsUnavailable = sharedLyricsUnavailable,
-                            lyricsOffsetOpen = false,
-                            onDismissLyricsOffset = {},
-                            windowWidth = windowWidth,
-                            windowHeight = windowHeight,
-                        )
+                        NowPlayingFor(current, windowWidth, windowHeight)
+                        val playerSong = playerSongFor(current)
                         if (playerMenuOpen) {
                             // Where the player's "…" sits: the right column's credits row, at
                             // the right edge of the centred two-column layout.
@@ -3891,10 +3909,10 @@ fun BitChordDesktopApp() {
                             val dialLabelsOn by DialSettings.dialLabels.collectAsState()
                             val dialLabelOverrides by DialSettings.dialHiddenLabels.collectAsState()
                             val dialPinIconOn by DialSettings.dialPinIcon.collectAsState()
-                            // The speed dial heads Home as on the phone: the pins, then YouTube's own
-                            // speed dial and the rest of the feed, minus what was taken off it.
-                            val homeWithDial = remember(homeState, speedDialsOn, dialPins, dialHidden) {
-                                withSpeedDial(homeState, speedDialsOn, dialPins)
+                            // The dials have their own column on the left, so the page is the feed
+                            // without them (YouTube's own speed dial shelf folded into the dial).
+                            val homeWithDial = remember(homeState, dialPins, dialHidden) {
+                                withSpeedDial(homeState, speedDialsOn = false, pins = dialPins)
                             }
                             HomeScreen(
                                 state = homeWithDial,
@@ -4911,6 +4929,81 @@ private fun DesktopFrame(
                                         ),
                                 ) { trailing() }
                             }
+                            }
+                        }
+                    }
+                    overlay()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dial's three-column window: the title bar across the top, then the dials on
+ * the left, the open page in the middle and the player on the right, each a
+ * rounded panel. Too narrow for all three, the player column steps aside and
+ * the player's bar returns above the page.
+ */
+@Composable
+private fun DialFrame(
+    containerColor: Color,
+    modifier: Modifier = Modifier,
+    backdrop: @Composable (transparentBase: Boolean) -> Unit,
+    titleBar: @Composable () -> Unit,
+    left: @Composable (Modifier) -> Unit,
+    /** The player column; null while nothing is playing. */
+    right: (@Composable (width: Dp, height: Dp) -> Unit)?,
+    /** The player's bar, above the page when the window has no room for the player column. */
+    topBar: @Composable (Boolean) -> Unit,
+    bottomBar: @Composable (Boolean) -> Unit,
+    overlay: @Composable () -> Unit = {},
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    val haze = remember { HazeState() }
+    CompositionLocalProvider(LocalDesktopHaze provides haze) {
+        Box(modifier.fillMaxSize().background(Color(0xFF0B0E0F))) {
+            Column(Modifier.fillMaxSize()) {
+                titleBar()
+                Box(Modifier.fillMaxWidth().weight(1f)) {
+                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val compact = maxWidth < 980.dp
+                        val withPlayer = right != null && maxWidth >= 1280.dp
+                        Row(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(start = DialBodyPadding, end = DialBodyPadding, bottom = DialBodyPadding),
+                            horizontalArrangement = Arrangement.spacedBy(DialBodyPadding),
+                        ) {
+                            if (!compact) left(Modifier.width(DialLeftColumnWidth).fillMaxHeight())
+                            Column(
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(DialPanelShape)
+                                    .background(containerColor),
+                            ) {
+                                if (!withPlayer) topBar(compact)
+                                Box(Modifier.fillMaxWidth().weight(1f)) {
+                                    Box(Modifier.fillMaxSize().hazeSource(haze)) {
+                                        backdrop(false)
+                                        content(PaddingValues(bottom = if (compact) 128.dp else 16.dp))
+                                    }
+                                    if (compact) {
+                                        Box(Modifier.align(Alignment.BottomCenter)) { bottomBar(true) }
+                                    }
+                                }
+                            }
+                            if (withPlayer) {
+                                BoxWithConstraints(
+                                    Modifier
+                                        .width(DialPlayerColumnWidth)
+                                        .fillMaxHeight()
+                                        .clip(DialPanelShape)
+                                        .background(Color(0xFF101314)),
+                                ) {
+                                    right!!(maxWidth, maxHeight)
+                                }
                             }
                         }
                     }
