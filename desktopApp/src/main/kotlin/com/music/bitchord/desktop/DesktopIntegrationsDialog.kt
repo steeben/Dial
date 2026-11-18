@@ -119,6 +119,10 @@ internal class DesktopSpotifyConnection(
     val onSignIn: () -> Unit,
     val onPasteCookie: () -> Unit,
     val onDisconnect: () -> Unit,
+    /** Signs in through the default browser instead (Facebook, Apple); null when it cannot. */
+    val onSignInWithBrowser: (() -> Unit)? = null,
+    /** Whether the browser sign-in is waiting for the listener. */
+    val browserSigningIn: Boolean = false,
 )
 
 /** Android's Spotify group, with Canvas in place of the playlists the desktop does not show yet. */
@@ -154,7 +158,20 @@ private fun SpotifySection(spotify: DesktopSpotifyConnection) {
                 destructive = true,
                 onClick = spotify.onDisconnect,
             )
-        } else if (spotify.canSignIn && !spotify.signingIn) {
+        } else if (!spotify.signingIn) {
+            spotify.onSignInWithBrowser?.let { signInWithBrowser ->
+                DesktopCardRule()
+                PanelActionRow(
+                    title = "Sign in with your browser",
+                    subtitle = if (spotify.browserSigningIn) {
+                        "Finish signing in in your browser; Dial picks it up from there. Click to stop waiting"
+                    } else {
+                        "For Facebook or Apple: opens Spotify's login in your default browser"
+                    },
+                    destructive = false,
+                    onClick = signInWithBrowser,
+                )
+            }
             DesktopCardRule()
             PanelActionRow(
                 title = "Paste a cookie instead",

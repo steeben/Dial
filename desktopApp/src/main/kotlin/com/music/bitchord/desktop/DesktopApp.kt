@@ -880,6 +880,42 @@ fun BitChordDesktopApp() {
         playCurrent(startPlaying)
     }
 
+    var spotifyBrowserSignInJob by remember { mutableStateOf<Job?>(null) }
+
+    /** Spotify's login in the default browser, and the session picked up from there; or stops waiting. */
+    fun signInToSpotifyWithBrowser() {
+        spotifyBrowserSignInJob?.let {
+            it.cancel()
+            spotifyBrowserSignInJob = null
+            return
+        }
+        spotifySignInError = null
+        spotifyBrowserSignInJob = scope.launch {
+            try {
+                val cookie = DesktopSpotifyBrowserSignIn.signIn()
+                if (cookie == null) {
+                    spotifySignInError = "No Spotify sign-in turned up in a browser. Try again, or paste the sp_dc cookie."
+                } else {
+                    DesktopSpotifyToken.setCookie(cookie)
+                    val works = withContext(Dispatchers.IO) { DesktopSpotifyToken.accessToken() != null }
+                    if (works) {
+                        spotifyCanvasCookie = cookie
+                    } else {
+                        DesktopSpotifyToken.setCookie("")
+                        spotifySignInError = "Spotify did not accept the session from your browser. Sign in there again, or paste the sp_dc cookie."
+                    }
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                DesktopTrackLog.log("spotify: browser sign-in failed: ${failure.message}")
+                spotifySignInError = failure.message ?: "Could not complete the Spotify sign-in."
+            } finally {
+                spotifyBrowserSignInJob = null
+            }
+        }
+    }
+
     /** Opens the Spotify sign-in window for an `sp_dc`, or closes the one already open. */
     fun signInToSpotify() {
         spotifySignInJob?.let {
@@ -3943,6 +3979,8 @@ fun BitChordDesktopApp() {
                                         error = spotifySignInError,
                                         onSignIn = ::signInToSpotify,
                                         onPasteCookie = { overlays.settingsPage = DesktopSettingsPage.SPOTIFY_CANVAS },
+                                        onSignInWithBrowser = ::signInToSpotifyWithBrowser,
+                                        browserSigningIn = spotifyBrowserSignInJob != null,
                                         onDisconnect = {
                                             DesktopSpotifyToken.setCookie("")
                                             spotifyCanvasCookie = ""

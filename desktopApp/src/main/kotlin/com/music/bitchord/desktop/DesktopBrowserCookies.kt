@@ -118,6 +118,69 @@ internal object DesktopBrowserCookies {
         }
     }
 
+    /** A Spotify session found in a browser: its `sp_dc`, and when the browser last wrote it. */
+    data class SpotifySession(val profile: Profile, val spDc: String, val writtenAt: Long)
+
+    /**
+     * The `sp_dc` cookie [profile] holds for spotify.com, if it holds one it can give up. Only that
+     * one cookie is read, and only on Spotify's hosts.
+     */
+    fun readSpotify(profile: Profile): SpotifySession? {
+        if (!Files.isReadable(profile.database)) return null
+        val copy = runCatching {
+            Files.createTempFile("dial-cookies", ".sqlite").also {
+                Files.copy(profile.database, it, StandardCopyOption.REPLACE_EXISTING)
+            }
+        }.getOrNull() ?: return null
+        return try {
+            runCatching {
+                java.sql.DriverManager.getConnection("jdbc:sqlite:${copy.toAbsolutePath()}").use { connection ->
+                    when (profile.family) {
+                        Family.FIREFOX -> connection.prepareStatement(
+                            "SELECT value, lastAccessed FROM moz_cookies " +
+                                "WHERE name = 'sp_dc' AND host LIKE '%spotify.com' ORDER BY lastAccessed DESC LIMIT 1",
+                        ).use { statement ->
+                            statement.executeQuery().use { rows ->
+                                if (!rows.next()) return@use null
+                                val value = rows.getString(1)?.takeIf(String::isNotBlank) ?: return@use null
+                                // Microseconds since 1970.
+                                SpotifySession(profile, value, rows.getLong(2) / 1_000L)
+                            }
+                        }
+                        Family.CHROMIUM -> {
+                            val linuxPassword = if (DesktopPlatform.isLinux) {
+                                profile.secretAttribute?.let { DesktopSecretStore.lookup(mapOf("application" to it)) }
+                            } else {
+                                null
+                            }
+                            val windowsKey = if (DesktopPlatform.isWindows) windowsMasterKey(profile.localState) else null
+                            connection.prepareStatement(
+                                "SELECT host_key, value, encrypted_value, last_update_utc FROM cookies " +
+                                    "WHERE name = 'sp_dc' AND host_key LIKE '%spotify.com' ORDER BY last_update_utc DESC LIMIT 1",
+                            ).use { statement ->
+                                statement.executeQuery().use { rows ->
+                                    if (!rows.next()) return@use null
+                                    val host = rows.getString(1).orEmpty()
+                                    val plain = rows.getString(2)
+                                    val sealed = rows.getBytes(3)
+                                    val value = when {
+                                        !plain.isNullOrBlank() -> plain
+                                        sealed == null || sealed.isEmpty() -> null
+                                        else -> decrypt(sealed, host, linuxPassword, windowsKey)
+                                    }?.takeIf(String::isNotBlank) ?: return@use null
+                                    // Microseconds since 1601.
+                                    SpotifySession(profile, value, rows.getLong(4) / 1_000L - 11_644_473_600_000L)
+                                }
+                            }
+                        }
+                    }
+                }
+            }.getOrNull()
+        } finally {
+            runCatching { Files.deleteIfExists(copy) }
+        }
+    }
+
     private fun readFirefox(database: Path): Result = query(database) { connection ->
         val cookies = LinkedHashMap<String, String>()
         connection.prepareStatement(
@@ -364,6 +427,7 @@ internal object DesktopBrowserCookies {
             ChromiumRoot("Edge", local.resolve("Microsoft/Edge/User Data"), null),
             ChromiumRoot("Brave", local.resolve("BraveSoftware/Brave-Browser/User Data"), null),
             ChromiumRoot("Vivaldi", local.resolve("Vivaldi/User Data"), null),
+            ChromiumRoot("Helium", local.resolve("imput/Helium/User Data"), null),
         )
     } else {
         LINUX_CHROMIUM_ROOTS.map { (name, spec) ->
