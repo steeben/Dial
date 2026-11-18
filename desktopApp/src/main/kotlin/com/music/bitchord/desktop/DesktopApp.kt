@@ -3200,7 +3200,16 @@ fun BitChordDesktopApp() {
                 )
             }
 
+            // The phone's ambient background, behind the dials and the page alike.
+            val ambientPalette = rememberDesktopArtworkPalette(selectedSong?.thumbnailUrl)
+            val reduceMotion by DesktopPlayerSettings.reduceAnimation.collectAsState()
+            val ambient = rememberDesktopAmbientBlobs(
+                primary = if (selectedSong != null) ambientPalette.primary else AmbientAppColor,
+                secondary = if (selectedSong != null) ambientPalette.secondary else ambientCompanion(AmbientAppColor),
+                animate = !reduceMotion,
+            )
             DialFrame(
+                ambient = ambient,
                 // The phone's page is black, not the near-black of its cards.
                 containerColor = DesktopBackground,
                 // Only Replay dresses itself unless ambient backdrop is on; everywhere else the chrome sits on the plain surface.
@@ -3382,6 +3391,7 @@ fun BitChordDesktopApp() {
                             }
                         },
                         modifier = columnModifier,
+                        ambient = ambient,
                     )
                 },
                 bottomBar = { compact ->
@@ -5034,6 +5044,7 @@ private fun DesktopFrame(
 private fun DialFrame(
     containerColor: Color,
     modifier: Modifier = Modifier,
+    ambient: DesktopAmbientBlobs? = null,
     backdrop: @Composable (transparentBase: Boolean) -> Unit,
     titleBar: @Composable () -> Unit,
     left: @Composable (Modifier) -> Unit,
@@ -5047,7 +5058,7 @@ private fun DialFrame(
 ) {
     val haze = remember { HazeState() }
     CompositionLocalProvider(LocalDesktopHaze provides haze) {
-        Box(modifier.fillMaxSize().background(Color(0xFF0B0E0F))) {
+        Box(modifier.fillMaxSize().background(Color.Black)) {
             Column(Modifier.fillMaxSize()) {
                 titleBar()
                 Box(Modifier.fillMaxWidth().weight(1f)) {
@@ -5066,12 +5077,13 @@ private fun DialFrame(
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .clip(DialPanelShape)
-                                    .background(containerColor),
+                                    .background(Color.Black)
+                                    .ambientBlobs(ambient),
                             ) {
                                 if (!withPlayer) topBar(compact)
                                 Box(Modifier.fillMaxWidth().weight(1f)) {
                                     Box(Modifier.fillMaxSize().hazeSource(haze)) {
-                                        backdrop(false)
+                                        backdrop(true)
                                         content(PaddingValues(bottom = if (compact) 128.dp else 16.dp))
                                     }
                                     if (compact) {

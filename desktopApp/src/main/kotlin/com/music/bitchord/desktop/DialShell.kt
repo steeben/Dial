@@ -380,6 +380,7 @@ internal fun DialColumn(
     selectedNav: DialNavItem?,
     onNav: (DialNavItem) -> Unit,
     modifier: Modifier = Modifier,
+    ambient: DesktopAmbientBlobs? = null,
 ) {
     val listState = rememberLazyListState()
     val haze = remember { HazeState() }
@@ -387,7 +388,8 @@ internal fun DialColumn(
     Box(
         modifier
             .clip(DialPanelShape)
-            .background(Color.Black),
+            .background(Color.Black)
+            .ambientBlobs(ambient),
     ) {
         CompositionLocalProvider(
             LocalDialTileStyle provides DialTileStyle.GLASS,
