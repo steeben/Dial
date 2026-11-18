@@ -7,6 +7,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 val appVersion: String = providers.gradleProperty("bitchord.version").orNull
     ?.removePrefix("v")
     ?.takeIf { it.isNotBlank() }
+    // Dial's one version line: the phone's versionName, so the desktop and the phone compare
+    // against the same releases.
+    ?: rootProject.file("app/build.gradle.kts").takeIf { it.isFile }?.readText()
+        ?.let { Regex("""versionName\s*=\s*"([^"]+)"""").find(it)?.groupValues?.get(1) }
     ?: "1.8-beta1"
 
 /** Which platform this build is *for*, which is the host unless told otherwise. */
@@ -425,11 +429,11 @@ val windowsPortableAssemble by tasks.registering {
             buildString {
                 appendLine("@echo off")
                 appendLine("setlocal")
-                appendLine("rem BitChord, portable. Needs a Java 21+ runtime on PATH or in JAVA_HOME.")
+                appendLine("rem Dial, portable. Needs a Java 21+ runtime on PATH or in JAVA_HOME.")
                 appendLine("set \"HERE=%~dp0\"")
                 appendLine("set \"RUNNER=java\"")
                 appendLine("if defined JAVA_HOME set \"RUNNER=%JAVA_HOME%\\bin\\java\"")
-                append("\"%RUNNER%\" -Dbitchord.version=$version")
+                append("\"%RUNNER%\" -Ddial.release=true -Dbitchord.version=$version")
                 if (moduleIndex.isNotBlank()) append(" -Dbitchord.module.index=$moduleIndex")
                 if (lastfmKey.isNotBlank() && lastfmSharedSecret.isNotBlank()) {
                     append(" -Dbitchord.lastfm.key=$lastfmKey -Dbitchord.lastfm.secret=$lastfmSharedSecret")

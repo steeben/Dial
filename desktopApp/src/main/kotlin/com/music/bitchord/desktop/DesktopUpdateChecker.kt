@@ -15,8 +15,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Looks at the repo's "latest release" on GitHub once per launch and says whether it is newer
- * than the running build. The installer is not run from here: the dialog opens the asset in the
+ * Looks at Dial's "latest release" on GitHub once per launch and says whether it is newer than the
+ * running build and carries an installer for this platform. Dial's releases are the phone's too,
+ * and one with only an APK is not an update this app can take, so it says nothing about those. The installer is not run from here: the dialog opens the asset in the
  * browser, so the user installs it the way they installed the first one.
  *
  * GitHub's "latest" skips pre-releases and drafts, so a `-beta` desktop build is only ever
@@ -33,9 +34,17 @@ internal object DesktopUpdateChecker {
     )
 
     private const val LATEST_RELEASE_URL =
-        "https://api.github.com/repos/kushagrasinghx/BitChord/releases/latest"
+        "https://api.github.com/repos/steeben/BitChord-Dial/releases/latest"
 
-    val currentVersion: String = System.getProperty("bitchord.version") ?: "1.8-beta1"
+    val currentVersion: String = System.getProperty("bitchord.version") ?: "0"
+
+    /**
+     * Whether this is an installed Dial rather than a build run from the sources (`run`, `hotRun`):
+     * jpackage's launchers set `jpackage.app-path`, the portable zip's sets `dial.release`.
+     */
+    private val isRelease: Boolean =
+        System.getProperty("compose.reload.isActive") != "true" &&
+            (System.getProperty("jpackage.app-path") != null || System.getProperty("dial.release") == "true")
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -46,7 +55,7 @@ internal object DesktopUpdateChecker {
         }
     }
 
-    suspend fun check(): UpdateInfo? = runCatching {
+    suspend fun check(): UpdateInfo? = if (!isRelease) null else runCatching {
         val response = http.get(LATEST_RELEASE_URL) {
             header("Accept", "application/vnd.github+json")
         }
@@ -57,22 +66,24 @@ internal object DesktopUpdateChecker {
         val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return@runCatching null
         val latest = tag.removePrefix("v")
         if (!isNewer(latest, currentVersion)) return@runCatching null
+        // A release with nothing for this platform (the phone's APK alone) is not one to offer.
+        val installer = installerUrl(release) ?: return@runCatching null
         UpdateInfo(
             version = latest,
             releaseUrl = url,
-            downloadUrl = installerUrl(release),
+            downloadUrl = installer,
             notes = release["body"]?.jsonPrimitive?.contentOrNull,
         )
     }.getOrNull()
 
     /**
-     * The release names its files `BitChord-<version>-windows-x64-setup.exe` and
-     * `BitChord-<version>-linux-x86_64.AppImage` (see .github/workflows/release.yml); match on the
-     * platform part so a version change does not matter.
+     * The installer for this platform among the release's files, matched on the platform part of
+     * the name so a version change does not matter: on Windows the setup .exe, the .msi or the
+     * portable zip, in that order.
      */
     private fun installerUrl(release: JsonObject): String? {
         val suffixes = when {
-            DesktopPlatform.isWindows -> listOf("-windows-x64-setup.exe")
+            DesktopPlatform.isWindows -> listOf("-windows-x64-setup.exe", ".msi", "-windows-portable.zip")
             DesktopPlatform.isLinux -> listOf(".AppImage", "-linux-amd64.deb")
             else -> return null
         }
