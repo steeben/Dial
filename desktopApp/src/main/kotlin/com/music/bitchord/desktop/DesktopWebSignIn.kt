@@ -17,6 +17,7 @@ import javafx.scene.layout.Region
 import javafx.scene.web.WebView
 import javafx.stage.Stage
 import kotlinx.coroutines.CancellationException
+import javafx.util.Callback
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
@@ -44,6 +45,11 @@ internal object DesktopWebSignIn {
             "https://open.spotify.com/",
         ),
     }
+
+    /** A current desktop Chrome, as the sign-in pages expect to meet. */
+    private const val SIGN_IN_USER_AGENT =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/142.0.0.0 Safari/537.36"
 
     /** Whether a sign-in window can be shown at all: it needs the JavaFX toolkit. */
     val available: Boolean get() = DesktopPoTokenWebView.available
@@ -131,13 +137,52 @@ internal object DesktopWebSignIn {
             val next = WebView().also { view = it }
             val engine = next.engine
             engine.userDataDirectory = folder.toFile()
-            engine.locationProperty().addListener { _, _, url -> where.text = hostOf(url) }
+            // A desktop browser, as the phone strips its WebView's markers: Facebook (and Google)
+            // turn away sign-ins they take for an embedded browser, and JavaFX names itself.
+            engine.userAgent = SIGN_IN_USER_AGENT
+            // Facebook's and Apple's logins open in a window of their own and hand the result back
+            // to the page that opened it; JavaFX drops such windows unless one is made for them.
+            engine.createPopupHandler = Callback { _ -> openPopup(folder) }
+            engine.locationProperty().addListener { _, _, url ->
+                where.text = hostOf(url)
+                // Where the sign-in went, host only: never a path, a query or anything typed.
+                hostOf(url).takeIf { it.isNotBlank() }?.let { DesktopTrackLog.log("sign-in: ${service.name} at $it") }
+            }
             engine.loadWorker.stateProperty().addListener { _, _, state ->
                 if (state == Worker.State.SUCCEEDED && view === next) onPage(engine.location.orEmpty())
             }
             confirm.isDisable = true
             root.center = next
             engine.load(service.startUrl)
+        }
+
+        /**
+         * A window for a page the sign-in opens (Facebook's or Apple's login), in the same cookie
+         * jar and storage, closed again when the page closes itself.
+         */
+        private fun openPopup(folder: java.nio.file.Path): javafx.scene.web.WebEngine {
+            val popupStage = Stage()
+            val popupView = WebView()
+            val popupEngine = popupView.engine
+            popupEngine.userDataDirectory = folder.toFile()
+            popupEngine.userAgent = SIGN_IN_USER_AGENT
+            popupEngine.createPopupHandler = Callback { _ -> popupEngine }
+            popupEngine.locationProperty().addListener { _, _, url ->
+                popupStage.title = hostOf(url)
+                hostOf(url).takeIf { it.isNotBlank() }?.let { DesktopTrackLog.log("sign-in: ${service.name} popup at $it") }
+            }
+            popupEngine.onVisibilityChanged = javafx.event.EventHandler { event ->
+                if (event.data == false) {
+                    DesktopTrackLog.log("sign-in: ${service.name} popup closed itself")
+                    popupStage.close()
+                    // The opener may have finished signing in behind it.
+                    view?.engine?.location?.let(::onPage)
+                }
+            }
+            popupStage.scene = Scene(BorderPane(popupView), 520.0, 720.0)
+            popupStage.initOwner(stage)
+            popupStage.show()
+            return popupEngine
         }
 
         private fun onPage(url: String) {
