@@ -350,12 +350,52 @@ internal object DesktopSpotifyToken {
         retryAfterMs = 0L
     }
 
+    /**
+     * Takes a token the web player minted for itself (the body of its `/api/token` response), as
+     * the phone takes the one its WebView's player mints. False when it is not a signed-in one.
+     */
+    fun adoptPayload(payload: String): Boolean {
+        val root = runCatching { json.parseToJsonElement(payload).jsonObject }.getOrNull() ?: return false
+        val token = root["accessToken"]?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank) ?: return false
+        if (root["isAnonymous"]?.jsonPrimitive?.contentOrNull == "true") return false
+        cachedAccessToken = token
+        accessTokenExpiresAtMs = root["accessTokenExpirationTimestampMs"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()
+            ?: (System.currentTimeMillis() + 3_600_000)
+        cachedClientId = root["clientId"]?.jsonPrimitive?.contentOrNull ?: cachedClientId
+        retryAfterMs = 0L
+        return true
+    }
+
+    /** The token the browser sign-in read, taken up now that its cookie is stored. */
+    fun adoptCached(): Boolean = DesktopSpotifyBrowserSignIn.takePayload()?.let(::adoptPayload) == true
+
+    /**
+     * The phone's way to a token Spotify's other services honour: load the real web player and read
+     * the token it mints for itself. Here that player runs in a hidden Chromium on Dial's own
+     * profile, the one the browser sign-in signed in.
+     */
+    private fun harvestFromBrowser(): Boolean {
+        if (!DesktopChromium.hasProfile || DesktopChromium.executable() == null) return false
+        val session = DesktopChromium.launch("https://open.spotify.com/", headless = true) ?: return false
+        return try {
+            val found = kotlinx.coroutines.runBlocking {
+                DesktopChromium.watchSpotify(session, timeoutMs = 30_000) { it.tokenPayload != null }
+            }
+            val ok = found.tokenPayload?.let(::adoptPayload) == true
+            DesktopTrackLog.log(if (ok) "canvas: web player token read from Dial's browser" else "canvas: Dial's browser gave no web player token")
+            ok
+        } finally {
+            session.close()
+        }
+    }
+
     @Synchronized
     fun accessToken(): String? {
         val cookie = cookie().ifBlank { return null }
         val now = System.currentTimeMillis()
         cachedAccessToken?.let { if (now < accessTokenExpiresAtMs - 30_000) return it }
         if (now < retryAfterMs) return null
+        if (harvestFromBrowser()) return cachedAccessToken
 
         val secret = TOTP_SECRETS.maxByOrNull { it.key }
         val code = secret?.let { totp(it.value, now / 1000) }

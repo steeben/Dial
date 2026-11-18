@@ -898,7 +898,9 @@ fun BitChordDesktopApp() {
                     spotifySignInError = "No Spotify sign-in turned up in a browser. Try again, or paste the sp_dc cookie."
                 } else {
                     DesktopSpotifyToken.setCookie(cookie)
-                    val works = withContext(Dispatchers.IO) { DesktopSpotifyToken.accessToken() != null }
+                    val works = withContext(Dispatchers.IO) {
+                        DesktopSpotifyToken.adoptCached() || DesktopSpotifyToken.accessToken() != null
+                    }
                     if (works) {
                         spotifyCanvasCookie = cookie
                     } else {

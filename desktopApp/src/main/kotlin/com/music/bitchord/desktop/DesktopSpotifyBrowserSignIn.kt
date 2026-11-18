@@ -15,6 +15,11 @@ import java.net.URI
  */
 internal object DesktopSpotifyBrowserSignIn {
 
+    @Volatile private var lastPayload: String? = null
+
+    /** The web player's token the last sign-in read, once. */
+    fun takePayload(): String? = lastPayload.also { lastPayload = null }
+
     private const val LOGIN_URL = "https://accounts.spotify.com/login?continue=https%3A%2F%2Fopen.spotify.com%2F"
     private const val POLL_MS = 2_500L
     private const val GIVE_UP_MS = 10 * 60_000L
@@ -22,6 +27,45 @@ internal object DesktopSpotifyBrowserSignIn {
 
     /** The cookie, once a browser has a new one; null if the listener never signed in. */
     suspend fun signIn(onWaiting: (String?) -> Unit = {}): String? = withContext(Dispatchers.IO) {
+        if (DesktopChromium.executable() != null) return@withContext signInWithDialBrowser(onWaiting)
+        signInFromBrowserCookies(onWaiting)
+    }
+
+    /**
+     * Spotify's login in a real browser window on Dial's own profile: Facebook and Apple accept it,
+     * and the session and the web player's token are read straight off it over DevTools, with no
+     * cookie file to unlock or decrypt. The window closes once Spotify has signed in.
+     */
+    private suspend fun signInWithDialBrowser(onWaiting: (String?) -> Unit): String? {
+        val session = DesktopChromium.launch(LOGIN_URL, headless = false) ?: return signInFromBrowserCookies(onWaiting)
+        DesktopTrackLog.log("spotify: sign-in opened in Dial's own browser window")
+        onWaiting("Sign in to Spotify in the browser window Dial opened; it closes by itself when you're done.")
+        var signedInAt = 0L
+        return try {
+            val found = DesktopChromium.watchSpotify(session, timeoutMs = GIVE_UP_MS) { seen ->
+                if (seen.spDc != null && signedInAt == 0L) signedInAt = System.currentTimeMillis()
+                // Signed in: wait a little for the web player's own token, then go.
+                seen.spDc != null && (seen.tokenPayload != null || System.currentTimeMillis() - signedInAt > 20_000) ||
+                    !session.process.isAlive
+            }
+            // Kept for the caller, which adopts it once the cookie is stored (storing one clears the token).
+            lastPayload = found.tokenPayload
+            DesktopTrackLog.log(
+                when {
+                    found.spDc == null -> "spotify: the browser window closed without a Spotify sign-in"
+                    found.tokenPayload != null -> "spotify: signed in, with the web player's token"
+                    else -> "spotify: signed in; the web player's token did not come"
+                },
+            )
+            onWaiting(null)
+            found.spDc
+        } finally {
+            session.close()
+        }
+    }
+
+    /** The older route: the listener's own browser, and its cookie file read once it lets go of it. */
+    private suspend fun signInFromBrowserCookies(onWaiting: (String?) -> Unit): String? = withContext(Dispatchers.IO) {
         val profiles = DesktopBrowserCookies.profiles()
         // What every browser held before: a session it already had is not this sign-in's.
         val before = profiles.associate { it.label to DesktopBrowserCookies.readSpotify(it)?.spDc }
