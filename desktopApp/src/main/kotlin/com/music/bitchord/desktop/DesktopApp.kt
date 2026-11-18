@@ -592,6 +592,9 @@ fun BitChordDesktopApp() {
     var moodGenreReloads by remember { mutableStateOf(0) }
     var moodGenreShelves by remember { mutableStateOf<UiState<List<HomeShelf>>>(UiState.Loading) }
     var selectedSong by remember { mutableStateOf<Song?>(null) }
+    // The song put in the player at launch so the player column has something to show: loaded
+    // paused, and not a play (history, Now Playing) until the listener presses play.
+    var cuedOnly by remember { mutableStateOf(false) }
     // The live queue: what is playing, what played before it, what is next.
     var liveQueue by remember {
         mutableStateOf(
@@ -826,6 +829,7 @@ fun BitChordDesktopApp() {
     /** Opens whatever the queue is currently pointing at. */
     fun playCurrent(startPlaying: Boolean = true) {
         val song = liveQueue.current ?: return
+        cuedOnly = false
         selectedSong = song
         history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
         saveQueue()
@@ -1637,8 +1641,19 @@ fun BitChordDesktopApp() {
             if (partySyncHolder[0] === partySync) partySyncHolder[0] = null
         }
     }
+    /** The cued song's first press of play: from here on it is a play like any other. */
+    fun startCued() {
+        if (!cuedOnly) return
+        cuedOnly = false
+        val song = selectedSong ?: return
+        history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
+        saveQueue()
+        persistence.saveHistory(history)
+        scope.launch { DesktopScrobbling.updateNowPlaying(song) }
+    }
     fun togglePlayPauseFromUser() {
         if (partySync.handleLockedPlayPause()) return
+        if (!playbackEngine.state.value.isPlaying) startCued()
         playbackEngine.togglePlayPause()
         partySync.onLocalIntent()
     }
@@ -1647,8 +1662,68 @@ fun BitChordDesktopApp() {
             if (!playbackEngine.state.value.isPlaying) partySync.handleLockedPlayPause()
             return
         }
+        startCued()
         playbackEngine.play()
         partySync.onLocalIntent()
+    }
+
+    /** Puts [song] in the player, paused at the start, without playing it or counting it. */
+    fun cue(song: Song) {
+        selectedSong = song
+        cuedOnly = true
+        playbackEngine.load(song, playWhenReady = false)
+    }
+
+    // At launch, with nothing playing, the player column still shows a song: the one the restored
+    // queue stands on, else the last one played, else the speed dial's first tile.
+    LaunchedEffect(Unit) {
+        if (selectedSong != null || DesktopListenTogether.state.value.inParty) return@LaunchedEffect
+        val restored = liveQueue.current
+        val last = history.firstOrNull()
+        when {
+            restored != null -> cue(restored)
+            last != null -> {
+                liveQueue = DesktopQueue(listOf(last), index = 0)
+                cue(last)
+            }
+        }
+    }
+    var cuedFromDial by remember { mutableStateOf(false) }
+    LaunchedEffect(homeState) {
+        if (selectedSong != null || cuedFromDial || homeState !is UiState.Success) return@LaunchedEffect
+        val first = desktopDials(
+            homeState,
+            speedDialsOn = true,
+            mixesDialOn = false,
+            speedPins = DialSettings.speedDialPins.value,
+            artistPins = emptyList(),
+        ).firstOrNull()?.firstOrNull() ?: return@LaunchedEffect
+        cuedFromDial = true
+        val videoId = first.videoId
+        val browseId = first.browseId
+        if (videoId != null) {
+            val song = first.toSong()
+            liveQueue = DesktopQueue(listOf(song), index = 0)
+            cue(song)
+        } else if (browseId != null && browseTypeOf(browseId) != BrowseType.ARTIST) {
+            // A playlist, album or mix: its tracks become the queue, standing on the first.
+            DesktopSearchClient.browse(
+                browseId = browseId,
+                fallback = BrowseItem(
+                    browseId = browseId,
+                    title = first.title,
+                    subtitle = first.subtitle,
+                    thumbnailUrl = first.thumbnailUrl,
+                    type = browseTypeOf(browseId),
+                ),
+            ).onSuccess { collection ->
+                val songs = collection.songs.filterNot { it.isUnresolvedSpotify }
+                if (songs.isNotEmpty() && selectedSong == null) {
+                    liveQueue = DesktopQueue(songs, index = 0)
+                    cue(songs.first())
+                }
+            }
+        }
     }
     fun pauseFromUser() {
         if (DesktopListenTogether.state.value.controlsLocked) {
