@@ -3648,9 +3648,34 @@ fun BitChordDesktopApp() {
                     },
                 ) { openMenu ->
                 pageMenu = openMenu
+                // The phone's fade-through between pages: the new page fades in from a little
+                // smaller as the old one goes, on every change of page, tab or Back.
+                val pageKey = listOf<Any?>(destination, overlays.settingsPage, openedCollection?.browseId, navHistory.size)
+                val pageIn = remember { androidx.compose.animation.core.Animatable(1f) }
+                var shownPageKey by remember { mutableStateOf(pageKey) }
+                LaunchedEffect(pageKey) {
+                    if (pageKey == shownPageKey) return@LaunchedEffect
+                    shownPageKey = pageKey
+                    if (reduceMotion) return@LaunchedEffect
+                    pageIn.snapTo(0f)
+                    pageIn.animateTo(
+                        1f,
+                        androidx.compose.animation.core.tween(
+                            durationMillis = 210,
+                            delayMillis = 40,
+                            easing = androidx.compose.animation.core.LinearOutSlowInEasing,
+                        ),
+                    )
+                }
                 Box(
                     Modifier
                         .fillMaxSize()
+                        .graphicsLayer {
+                            alpha = pageIn.value
+                            val scale = 0.96f + 0.04f * pageIn.value
+                            scaleX = scale
+                            scaleY = scale
+                        }
                         .pointerInput(Unit) {
                             awaitPointerEventScope {
                                 while (true) {

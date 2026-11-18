@@ -25,6 +25,7 @@ import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import kotlin.math.PI
 import kotlin.math.pow
+import kotlinx.coroutines.launch
 
 // The phone's liquid glass, on the desktop. Android runs its glass as AGSL runtime shaders; Skia
 // runs the same shading language (SkSL), so the phone's shaders are used here as they are: the
@@ -376,4 +377,48 @@ internal fun Modifier.clearLiquidGlass(
             tints = listOf(HazeTint(fill))
             noiseFactor = 0f
         }
+}
+
+/**
+ * The phone's press bounce (PressBounce): the glyph sinks to two thirds of its size under the
+ * pointer, the push-in always plays out in full, then it springs back past its size.
+ */
+@Composable
+internal fun Modifier.pressBounce(interactionSource: androidx.compose.foundation.interaction.InteractionSource): Modifier {
+    val scale = remember { androidx.compose.animation.core.Animatable(1f) }
+    androidx.compose.runtime.LaunchedEffect(interactionSource) {
+        kotlinx.coroutines.coroutineScope {
+            var pushIn: kotlinx.coroutines.Job? = null
+            interactionSource.interactions.collect { interaction ->
+                when (interaction) {
+                    is androidx.compose.foundation.interaction.PressInteraction.Press -> {
+                        pushIn = launch {
+                            scale.animateTo(
+                                0.66f,
+                                androidx.compose.animation.core.tween(170, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                            )
+                        }
+                    }
+                    is androidx.compose.foundation.interaction.PressInteraction.Release,
+                    is androidx.compose.foundation.interaction.PressInteraction.Cancel -> {
+                        val pressing = pushIn
+                        launch {
+                            pressing?.join()
+                            scale.animateTo(
+                                1f,
+                                androidx.compose.animation.core.spring(
+                                    dampingRatio = 0.3f,
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return graphicsLayer {
+        scaleX = scale.value
+        scaleY = scale.value
+    }
 }

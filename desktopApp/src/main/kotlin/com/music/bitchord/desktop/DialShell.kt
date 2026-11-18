@@ -497,19 +497,17 @@ private fun DialNavBar(
             DialNavItem.entries.forEach { item ->
                 val isSelected = item == selected
                 val tint = if (isSelected) TextColor else TextColor.copy(alpha = 0.65f)
+                val press = remember { MutableInteractionSource() }
                 Column(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(shape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { onSelect(item) },
+                        .clickable(interactionSource = press, indication = null) { onSelect(item) },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Icon(item.icon, item.label, tint = tint, modifier = Modifier.size(25.dp))
+                    Icon(item.icon, item.label, tint = tint, modifier = Modifier.size(25.dp).pressBounce(press))
                     Text(
                         item.label,
                         color = tint,
