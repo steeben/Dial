@@ -21,15 +21,28 @@ internal object DesktopSpotifyBrowserSignIn {
     private const val ALREADY_SIGNED_IN_MS = 15_000L
 
     /** The cookie, once a browser has a new one; null if the listener never signed in. */
-    suspend fun signIn(): String? = withContext(Dispatchers.IO) {
+    suspend fun signIn(onWaiting: (String?) -> Unit = {}): String? = withContext(Dispatchers.IO) {
         val profiles = DesktopBrowserCookies.profiles()
         // What every browser held before: a session it already had is not this sign-in's.
         val before = profiles.associate { it.label to DesktopBrowserCookies.readSpotify(it)?.spDc }
         DesktopTrackLog.log("spotify: opening the sign-in in the default browser; watching ${profiles.size} browser profiles")
         openInBrowser()
         val started = System.currentTimeMillis()
+        var lastLocked = emptySet<String>()
         while (System.currentTimeMillis() - started < GIVE_UP_MS) {
             delay(POLL_MS)
+            // A running Chromium browser keeps its cookies locked: the listener closes it once
+            // signed in, and the session is read the moment it lets go.
+            val locked = DesktopBrowserCookies.lockedProfiles.map { it.substringBefore(" · ") }.toSet()
+            if (locked != lastLocked) {
+                lastLocked = locked
+                if (locked.isNotEmpty()) DesktopTrackLog.log("spotify: waiting on ${locked.joinToString()}, whose cookies are locked while it runs")
+                onWaiting(
+                    locked.takeIf { it.isNotEmpty() }?.let { names ->
+                        "Signed in? Close ${names.joinToString(" / ")} so Dial can read the sign-in: it keeps its cookies locked while it runs."
+                    },
+                )
+            }
             val found = profiles.mapNotNull { profile ->
                 DesktopBrowserCookies.readSpotify(profile)?.takeIf { it.spDc != before[profile.label] }
             }.maxByOrNull { it.writtenAt }
@@ -61,10 +74,15 @@ internal object DesktopSpotifyBrowserSignIn {
 
     private fun openInBrowser() {
         val uri = URI(LOGIN_URL)
-        val desktop = Desktop.getDesktop().takeIf { Desktop.isDesktopSupported() && it.isSupported(Desktop.Action.BROWSE) }
-        if (desktop != null) {
+        val opened = runCatching {
+            val desktop = Desktop.getDesktop()
+            check(Desktop.isDesktopSupported() && desktop.isSupported(Desktop.Action.BROWSE))
             desktop.browse(uri)
-        } else if (DesktopPlatform.isWindows) {
+        }.isSuccess
+        if (opened) return
+        // Handed to the shell instead, as a double-click on a link would be.
+        DesktopTrackLog.log("spotify: the browser could not be opened directly; asking the shell")
+        if (DesktopPlatform.isWindows) {
             ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", LOGIN_URL).start()
         } else {
             ProcessBuilder("xdg-open", LOGIN_URL).start()

@@ -137,7 +137,9 @@ private fun SpotifySection(spotify: DesktopSpotifyConnection) {
             title = "Spotify",
             subtitle = when {
                 spotify.connected -> DesktopStrings["connected", "Connected"]
+                spotify.browserSigningIn -> "Finish signing in in your browser; Dial picks it up from there. Click to stop waiting"
                 spotify.signingIn -> "Finish signing in in the Spotify window. Click to cancel"
+                spotify.onSignInWithBrowser != null -> "Click to sign in in your browser"
                 spotify.canSignIn -> "Click to sign in"
                 else -> "Click to paste your sp_dc cookie"
             },
@@ -145,8 +147,11 @@ private fun SpotifySection(spotify: DesktopSpotifyConnection) {
             onClick = {
                 when {
                     // Connected: the cookie page, to see or replace what is held.
-                    spotify.connected || !spotify.canSignIn -> spotify.onPasteCookie()
-                    else -> spotify.onSignIn()
+                    spotify.connected -> spotify.onPasteCookie()
+                    // The listener's own browser first: Facebook and Apple refuse an embedded one.
+                    spotify.onSignInWithBrowser != null && !spotify.signingIn -> spotify.onSignInWithBrowser.invoke()
+                    spotify.canSignIn -> spotify.onSignIn()
+                    else -> spotify.onPasteCookie()
                 }
             },
         )
@@ -158,18 +163,18 @@ private fun SpotifySection(spotify: DesktopSpotifyConnection) {
                 destructive = true,
                 onClick = spotify.onDisconnect,
             )
-        } else if (!spotify.signingIn) {
-            spotify.onSignInWithBrowser?.let { signInWithBrowser ->
+        } else if (!spotify.browserSigningIn) {
+            if (spotify.canSignIn && spotify.onSignInWithBrowser != null) {
                 DesktopCardRule()
                 PanelActionRow(
-                    title = "Sign in with your browser",
-                    subtitle = if (spotify.browserSigningIn) {
-                        "Finish signing in in your browser; Dial picks it up from there. Click to stop waiting"
+                    title = "Sign in in a Dial window instead",
+                    subtitle = if (spotify.signingIn) {
+                        "Finish signing in in the Spotify window. Click to cancel"
                     } else {
-                        "For Facebook or Apple: opens Spotify's login in your default browser"
+                        "Spotify's login inside Dial; Facebook and Apple may refuse it"
                     },
                     destructive = false,
-                    onClick = signInWithBrowser,
+                    onClick = spotify.onSignIn,
                 )
             }
             DesktopCardRule()

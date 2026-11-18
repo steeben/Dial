@@ -892,7 +892,8 @@ fun BitChordDesktopApp() {
         spotifySignInError = null
         spotifyBrowserSignInJob = scope.launch {
             try {
-                val cookie = DesktopSpotifyBrowserSignIn.signIn()
+                val cookie = DesktopSpotifyBrowserSignIn.signIn { waiting -> spotifySignInError = waiting }
+                spotifySignInError = null
                 if (cookie == null) {
                     spotifySignInError = "No Spotify sign-in turned up in a browser. Try again, or paste the sp_dc cookie."
                 } else {

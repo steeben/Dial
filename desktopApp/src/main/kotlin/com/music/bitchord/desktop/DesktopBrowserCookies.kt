@@ -125,13 +125,30 @@ internal object DesktopBrowserCookies {
      * The `sp_dc` cookie [profile] holds for spotify.com, if it holds one it can give up. Only that
      * one cookie is read, and only on Spotify's hosts.
      */
+    /** Profiles whose cookie store was locked at the last [readSpotify]: their browser is running. */
+    val lockedProfiles: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
     fun readSpotify(profile: Profile): SpotifySession? {
         if (!Files.isReadable(profile.database)) return null
         val copy = runCatching {
             Files.createTempFile("dial-cookies", ".sqlite").also {
                 Files.copy(profile.database, it, StandardCopyOption.REPLACE_EXISTING)
+                // Recent writes can still sit in SQLite's side files (Firefox keeps a WAL); copied
+                // beside the database, they are read with it.
+                for (suffix in listOf("-wal", "-journal")) {
+                    val side = profile.database.resolveSibling(profile.database.fileName.toString() + suffix)
+                    if (Files.isRegularFile(side)) {
+                        runCatching {
+                            Files.copy(side, it.resolveSibling(it.fileName.toString() + suffix), StandardCopyOption.REPLACE_EXISTING)
+                        }
+                    }
+                }
             }
+        }.onFailure {
+            // Chromium browsers on Windows hold their cookie store locked while they run.
+            lockedProfiles += profile.label
         }.getOrNull() ?: return null
+        lockedProfiles -= profile.label
         return try {
             runCatching {
                 java.sql.DriverManager.getConnection("jdbc:sqlite:${copy.toAbsolutePath()}").use { connection ->
@@ -178,6 +195,9 @@ internal object DesktopBrowserCookies {
             }.getOrNull()
         } finally {
             runCatching { Files.deleteIfExists(copy) }
+            for (suffix in listOf("-wal", "-journal", "-shm")) {
+                runCatching { Files.deleteIfExists(copy.resolveSibling(copy.fileName.toString() + suffix)) }
+            }
         }
     }
 
