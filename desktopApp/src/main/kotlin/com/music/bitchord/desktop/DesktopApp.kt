@@ -3352,10 +3352,20 @@ fun BitChordDesktopApp() {
                     val dials = remember(homeState, speedDialsOn, mixesDialOn, speedPins, artistPins, hidden) {
                         desktopDials(homeState, speedDialsOn, mixesDialOn, speedPins, artistPins)
                     }
+                    val rows by DialSettings.speedDialRows.collectAsState()
+                    val pinIcon by DialSettings.dialPinIcon.collectAsState()
                     DialColumn(
                         dials = dials,
-                        labelShown = { item -> labelsOn != (item.speedDialId in labelOverrides) },
+                        pinnedIds = (speedPins + artistPins).mapNotNull { it.speedDialId }.toSet(),
+                        rows = rows,
+                        showLabels = labelsOn,
+                        labelOverrides = labelOverrides,
+                        showPinIcon = pinIcon,
+                        currentSong = playback.song,
+                        isPlaying = playback.isPlaying,
                         onTileClick = { item -> openShelfItem(item, SPEED_DIAL_TITLE) },
+                        onReorderSpeedDial = DialSettings::setSpeedDialPins,
+                        onReorderArtistDial = DialSettings::setArtistDialPins,
                         selectedNav = when {
                             overlays.settingsPage != null -> null
                             destination == DesktopDestination.LISTEN_NOW -> DialNavItem.HOME

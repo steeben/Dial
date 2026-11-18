@@ -295,6 +295,11 @@ internal fun SpeedDialShelf(
     newReleaseLabel: String = "",
     /** Whether each tile is tagged with the app it is from: the Mixes Dial's Spotify and YouTube Music marks. */
     sourceTags: Boolean = false,
+    /**
+     * One grid in a list of dials (the desktop's dials column): no air above
+     * it, no page dots and no room left below it for a miniplayer.
+     */
+    inColumn: Boolean = false,
 ) {
     if (shelf.items.isEmpty()) return
     val perPage = SPEED_DIAL_COLUMNS * rows
@@ -404,8 +409,14 @@ internal fun SpeedDialShelf(
         }
     }
 
-    Column(if (pageHeight != null) Modifier.height(pageHeight) else Modifier.padding(bottom = 66.dp)) {
-        Spacer(Modifier.height(SPEED_DIAL_HEADER_HEIGHT))
+    Column(
+        when {
+            pageHeight != null -> Modifier.height(pageHeight)
+            inColumn -> Modifier
+            else -> Modifier.padding(bottom = 66.dp)
+        },
+    ) {
+        if (!inColumn) Spacer(Modifier.height(SPEED_DIAL_HEADER_HEIGHT))
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val metrics = speedDialMetrics(maxWidth - PAGE_GUTTER * 2, rows, maxShelfHeight)
             val tileW = metrics.tileWidth
@@ -774,7 +785,7 @@ internal fun SpeedDialShelf(
                 }
             }
         }
-        Row(
+        if (!inColumn) Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -1673,3 +1684,41 @@ private const val WIGGLE_TAU = 6.2831855f
 /** How dark the tiles that can't be moved go while one is. */
 private const val WIGGLE_DIM = 0.45f
 private const val WIGGLE_FADE_MS = 220
+
+/**
+ * One dial drawn as the phone draws it (its tiles, glass rim, labels, pin
+ * badges, entrance and drag to reorder), as a single grid in a list of dials:
+ * the desktop's dials column. [shelf] holds one page's tiles, 3 x [rows].
+ */
+@Composable
+fun DialColumnGrid(
+    shelf: HomeShelf,
+    pinnedIds: Set<String>,
+    rows: Int,
+    onItemClick: (ShelfItem) -> Unit,
+    onItemLongPress: ((ShelfItem) -> Unit)?,
+    onReorder: ((List<ShelfItem>) -> Unit)?,
+    currentSong: Song?,
+    isPlaying: Boolean,
+    lucky: SpeedDialLucky? = null,
+    showLabels: Boolean = true,
+    labelOverrides: Set<String> = emptySet(),
+    showPinIcon: Boolean = true,
+    sourceTags: Boolean = false,
+) = SpeedDialShelf(
+    shelf = shelf,
+    pinnedIds = pinnedIds,
+    rows = rows,
+    maxShelfHeight = null,
+    onItemClick = onItemClick,
+    onItemLongPress = onItemLongPress,
+    onReorder = onReorder,
+    currentSong = currentSong,
+    isPlaying = isPlaying,
+    lucky = lucky,
+    showLabels = showLabels,
+    labelOverrides = labelOverrides,
+    showPinIcon = showPinIcon,
+    sourceTags = sourceTags,
+    inColumn = true,
+)

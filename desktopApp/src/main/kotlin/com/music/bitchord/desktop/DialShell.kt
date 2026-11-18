@@ -1,5 +1,17 @@
 package com.music.bitchord.desktop
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.CompositionLocalProvider
+import com.music.bitchord.data.model.HomeShelf
+import com.music.bitchord.ui.components.DialTileStyle
+import com.music.bitchord.ui.components.LocalDialTileGlassEdge
+import com.music.bitchord.ui.components.LocalDialTileOutset
+import com.music.bitchord.ui.components.LocalDialTileStyle
+import com.music.bitchord.ui.screens.DialColumnGrid
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -348,62 +360,95 @@ internal enum class DialNavItem(val label: String, val icon: ImageVector) {
 
 /**
  * The left column: the speed dial, the Mixes Dial and the artists' dial in one
- * scrolling list, a short hairline between each, and the glass nav bar
- * floating over the bottom.
+ * scrolling list, each drawn by the phone's own dial (its tiles, glass rim,
+ * labels, entrance and drag to reorder), a short hairline between each, and
+ * the glass nav bar floating over the bottom.
  */
 @Composable
 internal fun DialColumn(
     dials: List<List<ShelfItem>>,
-    labelShown: (ShelfItem) -> Boolean,
+    pinnedIds: Set<String>,
+    rows: Int,
+    showLabels: Boolean,
+    labelOverrides: Set<String>,
+    showPinIcon: Boolean,
+    currentSong: com.music.bitchord.data.model.Song?,
+    isPlaying: Boolean,
     onTileClick: (ShelfItem) -> Unit,
+    onReorderSpeedDial: (List<ShelfItem>) -> Unit,
+    onReorderArtistDial: (List<ShelfItem>) -> Unit,
     selectedNav: DialNavItem?,
     onNav: (DialNavItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val haze = remember { HazeState() }
+    val titles = listOf("Speed dial", "Mixes Dial", "Artist dial")
     Box(
         modifier
             .clip(DialPanelShape)
-            .background(
-                Brush.linearGradient(
-                    listOf(Color(0xFF2A2C1C), Color(0xFF15211F), Color(0xFF0F1A1C)),
-                ),
-            ),
+            .background(Color.Black),
     ) {
-        LazyColumn(
-            state = listState,
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 18.dp + 62.dp + 18.dp),
-            modifier = Modifier
-                .fillMaxSize()
-                // The top edge fades out over 28 px as the list scrolls under it.
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(
-                        Brush.verticalGradient(
-                            0f to Color.Transparent,
-                            28.dp.toPx() / size.height to Color.Black,
-                        ),
-                        blendMode = BlendMode.DstIn,
-                    )
-                },
+        CompositionLocalProvider(
+            LocalDialTileStyle provides DialTileStyle.GLASS,
+            LocalDialTileGlassEdge provides ::desktopDialTileGlassEdge,
+            LocalDialTileOutset provides 2.dp,
         ) {
-            dials.filter { it.isNotEmpty() }.forEachIndexed { index, tiles ->
-                if (index > 0) {
-                    item(key = "rule$index") {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
-                            Box(Modifier.fillMaxWidth(0.4f).height(1.dp).background(Color.White.copy(alpha = 0.16f)))
+            LazyColumn(
+                state = listState,
+                // The phone's dial keeps a 16 dp gutter of its own.
+                contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 18.dp, bottom = 18.dp + 62.dp + 18.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(haze)
+                    // The top edge fades out over 28 px as the list scrolls under it.
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            Brush.verticalGradient(
+                                0f to Color.Transparent,
+                                28.dp.toPx() / size.height to Color.Black,
+                            ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    },
+            ) {
+                dials.forEachIndexed { index, tiles ->
+                    if (tiles.isEmpty()) return@forEachIndexed
+                    if (dials.take(index).any { it.isNotEmpty() }) {
+                        item(key = "rule$index") {
+                            Box(Modifier.fillMaxWidth().padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+                                Box(Modifier.fillMaxWidth(0.4f).height(1.dp).background(Color.White.copy(alpha = 0.16f)))
+                            }
                         }
                     }
-                }
-                item(key = "dial$index") {
-                    DialGrid(tiles.take(DIAL_PAGE_TILES), labelShown, onTileClick)
+                    item(key = "dial$index") {
+                        DialColumnGrid(
+                            shelf = HomeShelf(titles[index], tiles.take(DIAL_PAGE_TILES)),
+                            pinnedIds = pinnedIds,
+                            rows = rows,
+                            onItemClick = onTileClick,
+                            onItemLongPress = null,
+                            onReorder = when (index) {
+                                0 -> onReorderSpeedDial
+                                2 -> onReorderArtistDial
+                                else -> null
+                            },
+                            currentSong = currentSong,
+                            isPlaying = isPlaying,
+                            showLabels = showLabels,
+                            labelOverrides = labelOverrides,
+                            showPinIcon = showPinIcon,
+                        )
+                    }
                 }
             }
         }
         DialNavBar(
             selected = selectedNav,
             onSelect = onNav,
+            haze = haze,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
@@ -414,90 +459,64 @@ internal fun DialColumn(
 }
 
 @Composable
-private fun DialGrid(
-    tiles: List<ShelfItem>,
-    labelShown: (ShelfItem) -> Boolean,
-    onTileClick: (ShelfItem) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        tiles.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                row.forEach { item ->
-                    DialTile(item, labelShown(item), onClick = { onTileClick(item) }, modifier = Modifier.weight(1f))
-                }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DialTile(item: ShelfItem, showLabel: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(14.dp)
-    val hover = remember { MutableInteractionSource() }
-    val hovered by hover.collectIsHoveredAsState()
-    Box(
-        modifier
-            .aspectRatio(1f)
-            .shadow(6.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.4f), spotColor = Color.Black.copy(alpha = 0.4f))
-            .clip(shape)
-            .background(Color(0xFF1E2224))
-            .hoverable(hover)
-            .clickable(onClick = onClick),
-    ) {
-        DesktopArtwork(item.thumbnailUrl, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, px = 256)
-        if (showLabel) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))),
-            )
-            Text(
-                item.title,
-                color = TextColor,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 8.dp, vertical = 6.dp),
-            )
-        }
-        if (hovered) Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.06f)))
-        Box(Modifier.fillMaxSize().border(1.dp, Color.White.copy(alpha = 0.14f), shape))
-    }
-}
-
-@Composable
 private fun DialNavBar(
     selected: DialNavItem?,
     onSelect: (DialNavItem) -> Unit,
+    haze: HazeState,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(31.dp)
-    Row(
-        modifier
-            .shadow(16.dp, shape, clip = false)
-            .clip(shape)
-            .background(Color(0xFF1B2422).copy(alpha = 0.82f))
-            .border(1.dp, GlassRim, shape)
-            .padding(5.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    // The phone's glass bar: a pill of clear glass, the tabs dividing it by weight, a 6 dp inset,
+    // and the selected tab raised on a faint white pill that slides between tabs.
+    val shape = RoundedCornerShape(percent = 50)
+    val selectedIndex = DialNavItem.entries.indexOf(selected)
+    BoxWithConstraints(
+        modifier.shadow(18.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.5f)),
     ) {
-        DialNavItem.entries.forEach { item ->
-            val isSelected = item == selected
-            Column(
+        Box(Modifier.matchParentSize().clearLiquidGlass(shape, haze))
+        Box(Modifier.matchParentSize().glassHighlight(shape))
+        val inset = 6.dp
+        val tabWidth = (maxWidth - inset * 2) / DialNavItem.entries.size
+        val pillX by animateDpAsState(
+            targetValue = inset + tabWidth * selectedIndex.coerceAtLeast(0),
+            animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
+            label = "navPill",
+        )
+        if (selectedIndex >= 0) {
+            Box(
                 Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(if (isSelected) Color.White.copy(alpha = 0.14f) else Color.Transparent)
-                    .clickable { onSelect(item) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Icon(item.icon, null, tint = if (isSelected) TextColor else DimText, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.height(2.dp))
-                Text(item.label, color = if (isSelected) TextColor else DimText, fontSize = 11.5.sp, maxLines = 1, fontWeight = FontWeight.Medium)
+                    .offset(x = pillX, y = inset)
+                    .width(tabWidth)
+                    .height(maxHeight - inset * 2)
+                    .clip(shape)
+                    .background(Color.White.copy(alpha = 0.14f)),
+            )
+        }
+        Row(Modifier.fillMaxSize().padding(inset), verticalAlignment = Alignment.CenterVertically) {
+            DialNavItem.entries.forEach { item ->
+                val isSelected = item == selected
+                val tint = if (isSelected) TextColor else TextColor.copy(alpha = 0.65f)
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(shape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onSelect(item) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(item.icon, item.label, tint = tint, modifier = Modifier.size(25.dp))
+                    Text(
+                        item.label,
+                        color = tint,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.W600,
+                        maxLines = 1,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
         }
     }
