@@ -14,9 +14,7 @@ internal object DesktopTrackLog {
     /** `$XDG_STATE_HOME/bitchord/desktop.log`, or the usual default under $HOME. */
     private val file: Path? by lazy {
         runCatching {
-            val state = System.getenv("XDG_STATE_HOME")?.takeIf { it.isNotBlank() }
-                ?: "${System.getProperty("user.home")}/.local/state"
-            val directory = Path.of(state, "bitchord")
+            val directory = DesktopStorage.stateDir
             Files.createDirectories(directory)
             directory.resolve("desktop.log")
         }.getOrNull()

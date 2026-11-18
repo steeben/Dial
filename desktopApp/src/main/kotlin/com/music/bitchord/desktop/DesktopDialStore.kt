@@ -71,12 +71,7 @@ class DesktopDialStore(private val file: Path = defaultFile()) : DialStore {
     }
 
     companion object {
-        fun defaultFile(): Path {
-            val home = Paths.get(System.getProperty("user.home"))
-            val base = System.getenv("APPDATA")?.takeIf { it.isNotBlank() }?.let(Paths::get)
-                ?: home.resolve(".config")
-            return base.resolve("Dial").resolve("dial-layout.json")
-        }
+        fun defaultFile(): Path = DesktopStorage.dataDir.resolve("dial-layout.json")
 
         private val json = Json { prettyPrint = true }
 
