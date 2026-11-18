@@ -80,6 +80,7 @@ internal object DesktopChromium {
     /** A browser Dial started, with its DevTools page connection. */
     class Session(val process: Process, val port: Int) {
         fun close() {
+            live -= this
             runCatching { process.descendants().forEach { it.destroy() } }
             process.destroy()
             if (!process.waitFor(4, TimeUnit.SECONDS)) {
@@ -89,10 +90,39 @@ internal object DesktopChromium {
         }
     }
 
+    private val live = java.util.concurrent.CopyOnWriteArraySet<Session>()
+
+    init {
+        // A browser Dial started goes when Dial does, so none is left holding the profile.
+        Runtime.getRuntime().addShutdownHook(Thread({ live.forEach { runCatching { it.close() } } }, "dial-chromium-close"))
+    }
+
+    /**
+     * Closes a browser still running on Dial's profile from an earlier run (one Dial did not get to
+     * close): a second launch on the same profile is handed to it and opens no DevTools port.
+     * Asked to close its windows first, so its cookies are saved, then stopped.
+     */
+    private fun closeStrays() {
+        if (!DesktopPlatform.isWindows) return
+        val marker = profileDir.fileName.toString()
+        val script = "\$ps = Get-CimInstance Win32_Process -Filter \"Name='chrome.exe' OR Name='msedge.exe' OR Name='brave.exe' OR Name='vivaldi.exe'\" | " +
+            "Where-Object { \$_.CommandLine -like '*$marker*' }; if (\$ps) { " +
+            "\$ps | ForEach-Object { (Get-Process -Id \$_.ProcessId -ErrorAction SilentlyContinue).CloseMainWindow() | Out-Null }; " +
+            "Start-Sleep -Seconds 3; \$ps | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }; 'closed' }"
+        runCatching {
+            val result = ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+                .redirectErrorStream(true).start()
+            val out = result.inputStream.bufferedReader().readText()
+            result.waitFor(15, TimeUnit.SECONDS)
+            if ("closed" in out) DesktopTrackLog.log("chromium: closed a browser left on Dial's profile")
+        }
+    }
+
     /** Starts the browser on [url] with Dial's profile; [headless] keeps it off screen. */
     fun launch(url: String, headless: Boolean): Session? {
         val exe = executable() ?: return null
         Files.createDirectories(profileDir)
+        closeStrays()
         val portFile = profileDir.resolve("DevToolsActivePort")
         runCatching { Files.deleteIfExists(portFile) }
         val args = buildList {
@@ -120,7 +150,7 @@ internal object DesktopChromium {
             val port = runCatching { Files.readAllLines(portFile).firstOrNull()?.trim()?.toInt() }.getOrNull()
             if (port != null && port > 0) {
                 DesktopTrackLog.log("chromium: started ${exe.fileName}${if (headless) " (hidden)" else ""}")
-                return Session(process, port)
+                return Session(process, port).also { live += it }
             }
             Thread.sleep(150)
         }
