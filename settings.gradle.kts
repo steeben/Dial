@@ -5,6 +5,12 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+plugins {
+    // Lets Gradle fetch a JDK a task asks for and the machine does not have. Only Compose Hot
+    // Reload's dev run (`:desktopApp:hotRun`) asks for one that is usually missing: the JetBrains
+    // Runtime, whose enhanced class redefinition is what lets UI edits reload into a running window.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
+}
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {

@@ -497,7 +497,7 @@ private fun DialNavBar(
             ) {
                 Icon(item.icon, null, tint = if (isSelected) TextColor else DimText, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.height(2.dp))
-                Text(item.label, color = if (isSelected) TextColor else DimText, fontSize = 11.5.sp, maxLines = 1)
+                Text(item.label, color = if (isSelected) TextColor else DimText, fontSize = 11.5.sp, maxLines = 1, fontWeight = FontWeight.Medium)
             }
         }
     }
