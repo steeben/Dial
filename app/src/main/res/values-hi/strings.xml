@@ -262,8 +262,8 @@
     <string name="video_quality_subtitle">म्यूज़िक वीडियो के लिए, और उस म्यूज़िक वीडियो के लिए जो किसी गाने के Canvas के रूप में दिखता है। अधिकतम क्वालिटी 4K तक का उपयोग करती है। इसमें बहुत ज़्यादा डेटा और बैटरी लगती है, और कमज़ोर फ़ोन पर यह धीमी हो सकती है।</string>
     <string name="video_quality_mobile">मोबाइल डेटा</string>
     <string name="video_quality_mobile_off_note">मोबाइल डेटा पर कोई Canvas या वीडियो नहीं चलता। प्लेयर कवर आर्ट दिखाता है और संगीत सामान्य रूप से चलता है। डाउनलोड किए गए गाने के साथ सहेजा गया Canvas फिर भी चलता है।</string>
-    <string name="bluetooth_video_delay">Bluetooth वीडियो देरी</string>
-    <string name="bluetooth_video_delay_subtitle">जब आवाज़ Bluetooth पर जाती है, तो वीडियो को इतने समय तक रोकता है, क्योंकि Bluetooth आवाज़ देर से आती है। अगर वीडियो आवाज़ से पहले चलता है, तो बड़ा मान चुनें।</string>
+    <string name="bluetooth_video_delay">Bluetooth वीडियो सिंक</string>
+    <string name="bluetooth_video_delay_subtitle">Dial ऑडियो आउटपुट से Bluetooth की देरी पढ़ता है और वीडियो को उतने समय तक रोकता है। अगर वीडियो और आवाज़ फिर भी मेल नहीं खाते, तो स्लाइडर हिलाएँ। प्लस वीडियो को और रोकता है। माइनस उसे आगे करता है।</string>
     <string name="video_quality_max">अधिकतम क्वालिटी</string>
     <string name="high_performance_mode">हाई परफ़ॉर्मेंस मोड</string>
     <string name="high_performance_subtitle">डिस्प्ले का ज़्यादा रिफ़्रेश रेट मांगता है</string>

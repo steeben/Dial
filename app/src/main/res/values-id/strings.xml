@@ -257,8 +257,8 @@
     <string name="video_quality_subtitle">Untuk video musik dan untuk video musik yang ditampilkan sebagai Canvas sebuah lagu. Kualitas maksimum memakai hingga 4K. Pilihan ini memakai jauh lebih banyak data dan baterai, dan bisa lambat pada ponsel yang lemah.</string>
     <string name="video_quality_mobile">Data seluler</string>
     <string name="video_quality_mobile_off_note">Dengan data seluler, tidak ada Canvas atau video yang diputar. Pemutar menampilkan sampul dan musik diputar seperti biasa. Canvas yang disimpan bersama lagu yang diunduh tetap diputar.</string>
-    <string name="bluetooth_video_delay">Jeda video Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">Menahan video selama waktu ini saat suara keluar lewat Bluetooth, karena suara Bluetooth datang terlambat. Jika gambar mendahului suara, atur nilai yang lebih tinggi.</string>
+    <string name="bluetooth_video_delay">Sinkronisasi video Bluetooth</string>
+    <string name="bluetooth_video_delay_subtitle">Dial membaca jeda Bluetooth dari output audio dan menahan video selama waktu itu. Jika gambar dan suara masih tidak cocok, geser slider. Plus menahan video lebih lama. Minus memajukannya.</string>
     <string name="video_quality_max">Kualitas maksimum</string>
     <string name="high_performance_mode">Mode performa tinggi</string>
     <string name="high_performance_subtitle">Meminta refresh rate layar yang lebih tinggi</string>

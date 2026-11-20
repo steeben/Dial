@@ -312,8 +312,8 @@
     <string name="video_quality_subtitle">Dành cho video âm nhạc và video âm nhạc hiển thị làm Canvas của bài hát. Chất lượng tối đa dùng đến 4K. Lựa chọn này dùng nhiều dữ liệu và pin hơn nhiều, và có thể chậm trên điện thoại yếu.</string>
     <string name="video_quality_mobile">Dữ liệu di động</string>
     <string name="video_quality_mobile_off_note">Khi dùng dữ liệu di động, không phát Canvas hay video. Trình phát hiển thị ảnh bìa và nhạc vẫn phát như bình thường. Canvas được lưu cùng bài hát đã tải xuống vẫn phát.</string>
-    <string name="bluetooth_video_delay">Độ trễ video Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">Giữ video chậm lại khoảng thời gian này khi âm thanh phát qua Bluetooth, vì âm thanh Bluetooth đến muộn. Nếu hình đi trước tiếng, hãy đặt giá trị cao hơn.</string>
+    <string name="bluetooth_video_delay">Đồng bộ video Bluetooth</string>
+    <string name="bluetooth_video_delay_subtitle">Dial đọc độ trễ Bluetooth từ đầu ra âm thanh và giữ video chậm lại đúng khoảng thời gian đó. Nếu hình và tiếng vẫn chưa khớp, hãy kéo thanh trượt. Cộng làm video chậm hơn. Trừ đưa video lên trước.</string>
     <string name="video_quality_max">Chất lượng tối đa</string>
     <string name="high_performance_mode">Chế độ hiệu năng cao</string>
     <string name="high_performance_subtitle">Yêu cầu tần số quét màn hình cao hơn</string>

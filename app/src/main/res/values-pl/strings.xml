@@ -260,8 +260,8 @@
     <string name="video_quality_subtitle">Dla teledysków i dla teledysku pokazywanego jako Canvas utworu. Maksymalna jakość używa do 4K. Zużywa dużo więcej danych i baterii i może działać wolno na słabszych telefonach.</string>
     <string name="video_quality_mobile">Dane komórkowe</string>
     <string name="video_quality_mobile_off_note">Na danych komórkowych nie jest odtwarzany żaden Canvas ani film. Odtwarzacz pokazuje okładkę, a muzyka gra jak zwykle. Canvas zapisany z pobranym utworem nadal jest odtwarzany.</string>
-    <string name="bluetooth_video_delay">Opóźnienie wideo przez Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">Opóźnia wideo o ten czas, gdy dźwięk idzie do Bluetooth, bo dźwięk Bluetooth przychodzi później. Jeśli obraz wyprzedza dźwięk, ustaw wyższą wartość.</string>
+    <string name="bluetooth_video_delay">Synchronizacja wideo przez Bluetooth</string>
+    <string name="bluetooth_video_delay_subtitle">Dial odczytuje opóźnienie Bluetooth z wyjścia audio i opóźnia wideo o ten czas. Jeśli obraz i dźwięk nadal się nie zgadzają, przesuń suwak. Plus opóźnia wideo bardziej. Minus przesuwa je do przodu.</string>
     <string name="video_quality_max">Maksymalna jakość</string>
     <string name="high_performance_mode">Tryb wysokiej wydajności</string>
     <string name="high_performance_subtitle">Żąda wyższej częstotliwości odświeżania ekranu</string>
