@@ -775,12 +775,25 @@ object Innertube {
     suspend fun externalPodcastStream(videoId: String): ExternalPodcasts.Enclosure? {
         if (cookie == null) return null
         ensureSessionScope()
-        val response = postMusic("player") {
+        suspend fun ask(scoped: Boolean): JsonObject = postMusic("player", scoped = scoped) {
             put("videoId", videoId)
             put("contentCheckOk", true)
             put("racyCheckOk", true)
         }
-        return ExternalPodcasts.enclosureIn(response)
+        val first = ask(scoped = true)
+        ExternalPodcasts.enclosureIn(first)?.let { return it }
+        Log.w(TAG, "no podcast feed audio for $videoId as this channel: ${ExternalPodcasts.describe(first)}")
+        // The feed is in the library of whoever added it, and the player
+        // answers it only for that identity ("Video unavailable" for any
+        // other). A listener whose requests carry a brand channel or an
+        // `onBehalfOfUser` that is not that identity gets nothing above, while
+        // a plain ask with the same cookie (what InnerTubeX's WEB_REMIX sends)
+        // was seen to get the format. So the cookie's own account is asked too.
+        if (scope?.dataSyncId == null && scope?.pageId == null && channelOverride == null) return null
+        val plain = ask(scoped = false)
+        ExternalPodcasts.enclosureIn(plain)?.let { return it }
+        Log.w(TAG, "no podcast feed audio for $videoId as the plain account: ${ExternalPodcasts.describe(plain)}")
+        return null
     }
 
     /** What YouTube Music itself schedules `atr` for, when it doesn't say. */
@@ -1154,6 +1167,9 @@ object Innertube {
     private suspend fun postMusic(
         endpoint: String,
         query: Map<String, String> = emptyMap(),
+        // False sends the cookie's own account: no brand channel
+        // (`X-Goog-PageId`) and no `onBehalfOfUser`. See [externalPodcastStream].
+        scoped: Boolean = true,
         bodyExtras: JsonObjectBuilder.() -> Unit,
     ): JsonObject {
         // This is the common authenticated request path: Home, Library,
@@ -1185,7 +1201,7 @@ object Innertube {
                     // Both were fixed at "the first one" before — see
                     // [SessionScope].
                     header("X-Goog-AuthUser", authUserFor(session))
-                    pageIdFor(session)?.let { header("X-Goog-PageId", it) }
+                    if (scoped) pageIdFor(session)?.let { header("X-Goog-PageId", it) }
                     sapisidFrom(c)?.let { header("Authorization", sapisidHash(it)) }
                 }
                 setBody(
@@ -1205,7 +1221,7 @@ object Innertube {
                                 // `onBehalfOfUser` it cannot tie to the cookie
                                 // with 401, so a guess here would take the
                                 // whole app down rather than just history.
-                                dataSyncIdFor(session)?.let { put("onBehalfOfUser", it) }
+                                if (scoped) dataSyncIdFor(session)?.let { put("onBehalfOfUser", it) }
                             }
                             putJsonObject("request") { put("useSsl", true) }
                         }

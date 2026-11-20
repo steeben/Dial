@@ -79,6 +79,67 @@ class ExternalPodcastsTest {
     }
 
     @Test
+    fun feedAudioWithoutTheFlag_isStillTheFeeds() {
+        val unflagged = json(
+            """
+            {
+              "playabilityStatus": { "status": "OK" },
+              "streamingData": { "formats": [ { "itag": 15, "mimeType": "audio/mpeg",
+                "url": "https://www.ivoox.com/episode_mf_184081969_feed_1.mp3?d=1" } ] },
+              "videoDetails": { "videoId": "nIT404chFzE" }
+            }
+            """,
+        )
+        assertEquals(
+            "https://www.ivoox.com/episode_mf_184081969_feed_1.mp3?d=1",
+            ExternalPodcasts.enclosureIn(unflagged)?.url,
+        )
+    }
+
+    @Test
+    fun feedAudioInsideACipher_isUnwrapped() {
+        val wrapped = json(
+            """
+            {
+              "playabilityStatus": { "status": "OK" },
+              "streamingData": { "formats": [ { "itag": 15, "mimeType": "audio/mpeg",
+                "signatureCipher": "s=abc&sp=sig&url=https%3A%2F%2Fwww.ivoox.com%2Fa_mf_1_feed_1.mp3%3Fd%3D2" } ] },
+              "videoDetails": { "isExternallyHostedPodcast": true }
+            }
+            """,
+        )
+        assertEquals("https://www.ivoox.com/a_mf_1_feed_1.mp3?d=2", ExternalPodcasts.enclosureIn(wrapped)?.url)
+    }
+
+    @Test
+    fun youTubeUrlWithoutTheFlag_isNotAnEnclosure() {
+        val ordinary = json(
+            """
+            {
+              "playabilityStatus": { "status": "OK" },
+              "streamingData": { "formats": [ { "itag": 18, "mimeType": "video/mp4",
+                "url": "https://rr1---sn-abc.googlevideo.com/videoplayback?itag=18" } ] },
+              "videoDetails": { "videoId": "dQw4w9WgXcQ" }
+            }
+            """,
+        )
+        assertNull(ExternalPodcasts.enclosureIn(ordinary))
+    }
+
+    @Test
+    fun describe_namesStatusFlagAndHostsOnly() {
+        val text = ExternalPodcasts.describe(feedEpisode)
+        assertTrue("status=OK" in text, text)
+        assertTrue("externallyHosted=true" in text, text)
+        assertTrue("15 audio/mpeg tracking.example.com" in text, text)
+        assertFalse("/track/" in text, text)
+        val refused = ExternalPodcasts.describe(
+            json("""{ "playabilityStatus": { "status": "ERROR", "reason": "Video unavailable" } }"""),
+        )
+        assertTrue("status=ERROR reason=Video unavailable" in refused, refused)
+    }
+
+    @Test
     fun registry_remembersAndForgets() {
         assertFalse(ExternalPodcasts.contains("VWWiutLZYE8"))
         ExternalPodcasts.mark("VWWiutLZYE8")
