@@ -46,6 +46,7 @@ import com.music.bitchord.data.settings.VideoQuality
 import com.music.bitchord.playback.AudioOutputStatus
 import com.music.bitchord.playback.AudioRouting
 import com.music.bitchord.playback.ChunkedDataSource
+import com.music.bitchord.playback.audio.OutputLatency
 import com.music.bitchord.playback.toSong
 import com.music.bitchord.ui.rememberIsForeground
 import kotlinx.coroutines.CancellationException
@@ -58,6 +59,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -126,12 +128,14 @@ object MusicVideoEngine {
     private var pictureOffsetMs = 0L
 
     /**
-     * How long the sound takes to come out of the output after the audio
-     * position says it played: [AppSettings.bluetoothVideoDelayMs] while the
-     * route is Bluetooth, else zero. The picture is held back by this much, so
-     * it shows what is heard, not what was handed to the output.
+     * How far the audio position runs ahead of the sound that is heard: on
+     * Bluetooth, the part of the headset delay the player's clock does not
+     * know ([OutputLatency.Reading.extraMs]) plus the listener's correction
+     * ([AppSettings.bluetoothVideoOffsetMs]); elsewhere zero. The picture is
+     * held back by this much, so it shows what is heard.
      */
     private var outputDelayMs = 0L
+    private var syncTicks = 0
     private var measureJob: Job? = null
     private var appContext: Context? = null
     private var loadJob: Job? = null
@@ -256,15 +260,31 @@ object MusicVideoEngine {
         // A song gaining its music video as a stand-in Canvas, or a fix from
         // the ⋯ menu, is followed at once too.
         scope.launch { VideoCanvases.pictures.collect { refresh() } }
-        // Headphones connected or removed mid-song, or the delay changed in
-        // Settings: line the picture up again now.
+        // A new output says nothing about the old one's delay: measure again.
+        scope.launch {
+            AudioOutputStatus.current
+                .map { it.routeKind to it.activeDeviceId }
+                .distinctUntilChanged()
+                .collect { OutputLatency.reset() }
+        }
+        // Headphones connected or removed mid-song, the delay measured, or the
+        // correction changed in Settings: line the picture up again now.
         scope.launch {
             combine(
-                AudioOutputStatus.current,
-                AppSettings.bluetoothVideoDelayMs,
-            ) { status, delayMs ->
-                if (status.routeKind == AudioRouting.Kind.BLUETOOTH) delayMs.toLong() else 0L
-            }.distinctUntilChanged().collect { delayMs ->
+                AudioOutputStatus.current.map { it.routeKind == AudioRouting.Kind.BLUETOOTH }.distinctUntilChanged(),
+                OutputLatency.reading,
+                AppSettings.bluetoothVideoOffsetMs,
+            ) { bluetooth, reading, offsetMs ->
+                Triple(bluetooth, reading, offsetMs)
+            }.collect { (bluetooth, reading, offsetMs) ->
+                val delayMs = if (bluetooth) ((reading?.extraMs ?: 0L) + offsetMs).coerceAtLeast(0L) else 0L
+                if (reading != null) {
+                    TrackLog.d(
+                        TAG,
+                        "video: output timestamps=${reading.timestampMs}ms output=${reading.outputMs}ms " +
+                            "extra=${reading.extraMs}ms bluetooth=$bluetooth offset=${offsetMs}ms",
+                    )
+                }
                 if (delayMs == outputDelayMs) return@collect
                 TrackLog.d(TAG, "video: output delay ${outputDelayMs}ms -> ${delayMs}ms")
                 outputDelayMs = delayMs
@@ -596,6 +616,8 @@ object MusicVideoEngine {
         syncJob = scope.launch {
             while (isActive) {
                 sync()
+                // About once a second, while a picture follows the sound.
+                if (++syncTicks % 4 == 0 && controller?.isPlaying == true) OutputLatency.sample()
                 delay(SYNC_EVERY_MS)
             }
         }

@@ -448,8 +448,8 @@
     <string name="video_quality_wifi" translatable="false">Wi-Fi</string>
     <string name="video_quality_mobile">Mobile data</string>
     <string name="video_quality_mobile_off_note">On mobile data, no Canvas or video plays. The player shows the cover art and the music plays as usual. A Canvas saved with a downloaded song still plays.</string>
-    <string name="bluetooth_video_delay">Bluetooth video delay</string>
-    <string name="bluetooth_video_delay_subtitle">Holds the video back by this time when the sound goes to Bluetooth, because Bluetooth sound comes late. If the video moves before the sound, set a higher value.</string>
+    <string name="bluetooth_video_delay">Bluetooth video sync</string>
+    <string name="bluetooth_video_delay_subtitle">Dial reads the Bluetooth delay from the audio output and holds the video back by that time. If the video and the sound still do not agree, move the slider. Plus holds the video back more. Minus moves it forward.</string>
     <string name="video_quality_480" translatable="false">480p</string>
     <string name="video_quality_1080" translatable="false">1080p</string>
     <string name="video_quality_max">Max quality</string>
