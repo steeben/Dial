@@ -764,6 +764,25 @@ object Innertube {
         )
     }
 
+    /**
+     * The feed's own audio for a podcast episode YouTube does not host — one
+     * the listener added to their library from an RSS feed — or null when
+     * [videoId] is not one, or nobody is signed in.
+     *
+     * Only the signed-in WEB_REMIX `player` answers such an episode; see
+     * [ExternalPodcasts] for the shape of the answer.
+     */
+    suspend fun externalPodcastStream(videoId: String): ExternalPodcasts.Enclosure? {
+        if (cookie == null) return null
+        ensureSessionScope()
+        val response = postMusic("player") {
+            put("videoId", videoId)
+            put("contentCheckOk", true)
+            put("racyCheckOk", true)
+        }
+        return ExternalPodcasts.enclosureIn(response)
+    }
+
     /** What YouTube Music itself schedules `atr` for, when it doesn't say. */
     private const val DEFAULT_ATR_SECONDS = 5L
 

@@ -894,6 +894,7 @@ object InnertubeParser {
 
         val thumbnails = renderer.o("thumbnail").o("musicThumbnailRenderer")
             .o("thumbnail").a("thumbnails")
+        if (episode && ExternalPodcasts.isIngestedArt(thumbnails.best())) ExternalPodcasts.mark(videoId)
 
         // An upload the listener renamed from Song fixes reads its new name.
         return com.music.bitchord.data.SongMetadataFixes.apply(Song(
@@ -958,14 +959,17 @@ object InnertubeParser {
         val title = renderer.o("title").runs()
         if (title.isBlank()) return null
         val progress = renderer.o("playbackProgress").o("musicPlaybackProgressRenderer")
+        val art = renderer.o("thumbnail").o("musicThumbnailRenderer")
+            .o("thumbnail").a("thumbnails").best()
+        // A show added from an RSS feed plays from the feed's own host.
+        if (ExternalPodcasts.isIngestedArt(art)) ExternalPodcasts.mark(videoId)
         return Song(
             videoId = videoId,
             title = title,
             artist = renderer.o("secondTitle").runs().takeIf { it.isNotBlank() }
                 ?: show
                 ?: "Unknown artist",
-            thumbnailUrl = renderer.o("thumbnail").o("musicThumbnailRenderer")
-                .o("thumbnail").a("thumbnails").best(),
+            thumbnailUrl = art,
             durationText = episodeRuntime(progress.o("durationText").runs()),
             isExplicit = renderer.hasExplicitBadge(),
             episode = EpisodeInfo(
@@ -1562,11 +1566,13 @@ object InnertubeParser {
         val credits = creditsOf(bylineRuns)
         // What follows an episode in its queue is more episodes.
         val episode = renderer.musicVideoType() == PODCAST_EPISODE_TYPE
+        val art = renderer.o("thumbnail").a("thumbnails").best()
+        if (episode && ExternalPodcasts.isIngestedArt(art)) ExternalPodcasts.mark(videoId)
         return Song(
             videoId = videoId,
             title = title,
             artist = artist,
-            thumbnailUrl = renderer.o("thumbnail").a("thumbnails").best(),
+            thumbnailUrl = art,
             durationText = renderer.o("lengthText").runs().takeIf { it.isNotBlank() },
             artistId = credits.artistId,
             artists = completeArtistCredits(artist, credits.artists),

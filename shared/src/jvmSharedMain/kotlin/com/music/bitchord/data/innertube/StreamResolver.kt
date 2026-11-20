@@ -363,6 +363,7 @@ object StreamResolver {
         unplayable.clear()
         // Another account's private library is a different set of tracks.
         UploadedTracks.clear()
+        ExternalPodcasts.clear()
     }
 
     private const val UNPLAYABLE_TTL_MS = 10 * 60 * 1000L
@@ -427,8 +428,13 @@ object StreamResolver {
 
     private suspend fun resolveUncached(videoId: String): Stream {
         val resolveStart = MonotonicClock.nowMs()
+        // An episode from a podcast the listener added by RSS feed is not on
+        // googlevideo at all; see [ExternalPodcasts]. One already known to be
+        // such is asked for its feed's audio first, and is not asked twice.
+        val knownExternal = ExternalPodcasts.contains(videoId)
         val stream = try {
-            timed("$videoId InnerTubeX") { innerTubeXStreamAllowingUploads(videoId) }
+            (if (knownExternal) timed("$videoId podcast feed") { externalPodcastStream(videoId) } else null)
+                ?: timed("$videoId InnerTubeX") { innerTubeXStreamAllowingUploads(videoId) }
                 ?.let { found ->
                     // A live broadcast's adaptive URL is one window of a stream
                     // that keeps growing: it plays the few seconds that exist
@@ -436,6 +442,10 @@ object StreamResolver {
                     if (!isLiveUrl(found.url)) found
                     else timed("$videoId live HLS") { liveHlsStream(videoId) } ?: found
                 }
+                // Before extraction, which asks anonymously and so can only
+                // call such an episode "unavailable" — a verdict that would
+                // then be remembered for ten minutes.
+                ?: (if (!knownExternal) timed("$videoId podcast feed") { externalPodcastStream(videoId) } else null)
                 ?: run {
                     TrackLog.w(TAG, "InnerTubeX found no usable stream for $videoId; falling back to extraction")
                     timed("$videoId newPipeStream") { newPipeStream(videoId, ::pickForQuality) }
@@ -618,7 +628,40 @@ object StreamResolver {
 
     /** The headers a media fetch for [url] must carry to match whoever minted it. */
     fun mediaHeadersFor(url: String): Map<String, String> =
-        InnerTubeXResolver.headersFor(url) ?: PlayerClient.forStreamUrl(url).mediaHeaders()
+        // A podcast host is not googlevideo, and has no client to match.
+        if (ExternalPodcasts.isStreamUrl(url)) mapOf("User-Agent" to ExternalPodcasts.USER_AGENT)
+        else InnerTubeXResolver.headersFor(url) ?: PlayerClient.forStreamUrl(url).mediaHeaders()
+
+    /**
+     * The feed's own audio for a podcast episode YouTube does not host, or null
+     * when [videoId] is not one (or nobody is signed in, which leaves no
+     * library for a feed to be in).
+     *
+     * Not probed. The URL is the feed's enclosure, usually behind a tracking
+     * redirect or two, and podcast hosts disagree about Content-Type
+     * (`application/octet-stream` is common), so [probe]'s test for a real
+     * audio answer would turn good episodes away. ExoPlayer reports a dead
+     * one itself.
+     */
+    private suspend fun externalPodcastStream(videoId: String): Stream? {
+        if (Innertube.cookie.isNullOrBlank()) return null
+        val found = try {
+            Innertube.externalPodcastStream(videoId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            TrackLog.w(TAG, "asking for $videoId as a podcast feed episode failed: ${e.javaClass.simpleName}: ${e.message}")
+            return null
+        } ?: return null
+        ExternalPodcasts.mark(videoId)
+        ExternalPodcasts.rememberStreamUrl(found.url)
+        TrackLog.d(
+            TAG,
+            "resolved $videoId from its podcast feed (${found.url.toHttpUrlOrNull()?.host}) " +
+                "${found.mimeType} @ ${found.kbps}kbps",
+        )
+        return Stream(found.url, found.kbps, found.mimeType)
+    }
 
     private const val INNERTUBEX_ATTEMPTS = 3
 
