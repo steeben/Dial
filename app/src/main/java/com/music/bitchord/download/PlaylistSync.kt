@@ -36,6 +36,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.TimeUnit
@@ -51,6 +52,9 @@ import java.util.concurrent.TimeUnit
  *
  * Only ever adds. A track the listener deleted is still named by its playlist's
  * record, so it does not come back; a track removed online keeps its file.
+ *
+ * A song the listener likes or adds to a downloaded playlist from inside Dial
+ * does not wait for a check: [added] fetches it at once.
  */
 object PlaylistSync {
 
@@ -78,34 +82,97 @@ object PlaylistSync {
     /** One check at a time, however many of the triggers fire together. */
     private val running = Mutex()
 
+    /** What the schedule depends on: the setting, the Wi-Fi rule, and a playlist to check. */
+    private data class Schedule(val on: Boolean, val wifiOnly: Boolean, val anyPlaylist: Boolean) {
+        val active get() = on && anyPlaylist
+    }
+
     /**
-     * Follows the setting and the Wi-Fi rule its schedule depends on.
+     * Follows the setting, the Wi-Fi rule its schedule depends on, and whether
+     * any playlist is downloaded.
      *
-     * Off, this never touches WorkManager, which is initialised on demand for
-     * that reason: a switch that defaults to off should cost a launch nothing.
+     * With no playlist to check, this never touches WorkManager, which is
+     * initialised on demand for that reason: a switch that is on by default
+     * must cost a launch nothing until a playlist is downloaded.
      */
     fun init(app: Application) {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-            var wasOn: Boolean? = null
-            AppSettings.syncDownloadedPlaylists
-                .combine(AppSettings.wifiOnlyDownloads) { on, wifiOnly -> on to wifiOnly }
+            var last: Schedule? = null
+            combine(
+                AppSettings.syncDownloadedPlaylists,
+                AppSettings.wifiOnlyDownloads,
+                Downloads.collections.map(::anySyncable).distinctUntilChanged(),
+            ) { on, wifiOnly, anyPlaylist -> Schedule(on, wifiOnly, anyPlaylist) }
                 .distinctUntilChanged()
-                .collect { (on, wifiOnly) ->
-                    val firstLook = wasOn == null
-                    if (on) {
-                        schedule(app, wifiOnly, replace = !firstLook)
-                        if (wasOn == false) checkNow(app)
-                    } else if (!firstLook) {
+                .collect { now ->
+                    val before = last
+                    if (now.active) {
+                        schedule(app, now.wifiOnly, replace = before != null)
+                        // Only when the switch itself was turned on. A playlist
+                        // that was just downloaded has nothing new to find.
+                        if (before?.on == false) checkNow(app)
+                    } else if (before?.active == true) {
                         cancel(app)
                     }
-                    wasOn = on
+                    last = now
                 }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
-                if (AppSettings.syncDownloadedPlaylists.value && catchUpDue(app)) checkNow(app)
+                if (AppSettings.syncDownloadedPlaylists.value &&
+                    anySyncable(Downloads.collections.value) &&
+                    catchUpDue(app)
+                ) {
+                    checkNow(app)
+                }
             }
         })
+    }
+
+    internal fun anySyncable(collections: Map<String, SavedCollection>): Boolean =
+        collections.values.any { syncableBrowseId(it) != null }
+
+    /**
+     * Songs the listener just put into the playlist [browseId] from inside Dial:
+     * a heart puts a song into Liked Music, "Add to playlist" into one of their
+     * own. If that playlist is downloaded, the songs download now instead of at
+     * the next check, which can be twelve hours away.
+     *
+     * Called from a window or from the playback service, so the download
+     * service can start. A song not fetched here (Wi-Fi only on mobile data, a
+     * refused start) stays out of the record, and the next check finds it.
+     *
+     * @param atStart where the songs go in the record: Liked Music lists the
+     *   newest like first, an ordinary playlist puts a new song last.
+     */
+    fun added(context: Context, browseId: String, songs: List<Song>, atStart: Boolean = false) {
+        if (!AppSettings.syncDownloadedPlaylists.value || songs.isEmpty()) return
+        val record = recordFor(browseId, Downloads.collections.value) ?: return
+        val fresh = newTracks(songs.distinctBy { it.videoId }, record)
+        if (fresh.isEmpty() || !storageWritable(context)) return
+        val saved = Downloads.saved.value
+        val (onDevice, missing) = fresh.partition { it.videoId in saved }
+        val fetch = missing.filter { AppSettings.downloadsAllowedNow || Downloads.servableFromCache(it.videoId) }
+        val cover = record.thumbnailUrl?.takeIf { it.startsWith("http") }
+        fetch.forEach { song ->
+            val withCover = if (song.thumbnailUrl.isNullOrBlank() && cover != null) song.copy(thumbnailUrl = cover) else song
+            Downloads.enqueue(context, withCover, record.title)
+        }
+        val ids = (onDevice + fetch).map { it.videoId }
+        Downloads.markRequested(record.id, fetch.map { it.videoId })
+        Downloads.addToCollection(record.id, ids, atStart)
+    }
+
+    /**
+     * The record of the downloaded playlist [browseId], if a check would look
+     * at it. A playlist is filed under the id it was downloaded from, with or
+     * without its `VL`, and Liked Music answers to `LM` as well as `VLLM`.
+     */
+    internal fun recordFor(browseId: String, collections: Map<String, SavedCollection>): SavedCollection? {
+        val bare = browseId.removePrefix("VL")
+        return listOf("VL$bare", bare)
+            .firstNotNullOfOrNull { collections[it] }
+            ?.takeIf { syncableBrowseId(it) != null }
     }
 
     /**
@@ -359,7 +426,9 @@ object PlaylistSync {
 class PlaylistSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         // Turned off in a run of the app that died before it could cancel this.
-        if (!AppSettings.syncDownloadedPlaylists.value) {
+        // Also when the last downloaded playlist was deleted in a run that died
+        // before it could cancel this.
+        if (!AppSettings.syncDownloadedPlaylists.value || !PlaylistSync.anySyncable(Downloads.collections.value)) {
             PlaylistSync.cancel(applicationContext)
             return Result.success()
         }

@@ -485,6 +485,20 @@ object Downloads {
         }
     }
 
+    /**
+     * Puts [videoIds] into the record of release [id], at its start or its end,
+     * without moving the tracks it already names. Nothing when there is no
+     * record: a release never downloaded does not start to be one here.
+     */
+    fun addToCollection(id: String, videoIds: List<String>, atStart: Boolean) {
+        if (videoIds.isEmpty()) return
+        recordCollections { current ->
+            val existing = current[id] ?: return@recordCollections current
+            val ids = if (atStart) videoIds + existing.videoIds else existing.videoIds + videoIds
+            current + (id to existing.copy(videoIds = ids.distinct()))
+        }
+    }
+
     /** Replace a collection's remote artwork URL with its durable local copy. */
     fun rememberCollectionArtwork(id: String, thumbnailUrl: String) {
         recordCollections { current ->
