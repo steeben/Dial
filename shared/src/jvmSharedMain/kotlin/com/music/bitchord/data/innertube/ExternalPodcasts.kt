@@ -99,26 +99,75 @@ object ExternalPodcasts {
      * playable episode that YouTube does not host.
      */
     fun enclosureIn(player: JsonObject): Enclosure? {
-        val details = player["videoDetails"] as? JsonObject ?: return null
-        val external = (details["isExternallyHostedPodcast"] as? JsonPrimitive)?.booleanOrNull == true
-        if (!external) return null
-        val status = ((player["playabilityStatus"] as? JsonObject)?.get("status") as? JsonPrimitive)?.contentOrNull
+        val status = player.playability()
         if (status != null && status != "OK") return null
-        val streaming = player["streamingData"] as? JsonObject ?: return null
-        val formats = listOf("formats", "adaptiveFormats")
-            .flatMap { key -> (streaming[key] as? JsonArray).orEmpty() }
-            .mapNotNull { it as? JsonObject }
-        val format = formats.firstOrNull { format ->
-            format.string("url")?.startsWith("http") == true &&
-                format.string("mimeType")?.startsWith("audio/") == true
-        } ?: formats.firstOrNull { it.string("url")?.startsWith("http") == true }
-            ?: return null
+        // The flag says so outright. Without it, a format that plays from a
+        // host that is not YouTube's says the same thing.
+        val flagged = player.isExternallyHosted()
+        val candidates = player.formats().mapNotNull { format ->
+            val url = format.mediaUrl() ?: return@mapNotNull null
+            if (!flagged && url.isYouTubeMedia()) return@mapNotNull null
+            format to url
+        }
+        val (format, url) = candidates.firstOrNull { (format, _) ->
+            format.string("mimeType")?.startsWith("audio/") == true
+        } ?: candidates.firstOrNull() ?: return null
         return Enclosure(
-            url = format.string("url")!!,
+            url = url,
             mimeType = format.string("mimeType") ?: "audio/mpeg",
             contentLength = format.string("contentLength")?.toLongOrNull(),
             durationMs = format.string("approxDurationMs")?.toLongOrNull(),
         )
+    }
+
+    /**
+     * What a `player` answer held, for the log when [enclosureIn] found
+     * nothing in it: status, the flag, and each format's itag, type and host.
+     * Hosts only, never a URL, which can carry a listener's session.
+     */
+    fun describe(player: JsonObject): String {
+        val reason = ((player["playabilityStatus"] as? JsonObject)?.get("reason") as? JsonPrimitive)?.contentOrNull
+        val formats = player.formats().joinToString(prefix = "[", postfix = "]") { format ->
+            val host = format.mediaUrl()?.let { runCatching { java.net.URI(it).host }.getOrNull() }
+            "${format.string("itag")} ${format.string("mimeType")?.substringBefore(';')} " +
+                (host ?: if (format.containsKey("signatureCipher")) "cipher" else "no url")
+        }
+        return "status=${player.playability()} reason=$reason " +
+            "externallyHosted=${player.isExternallyHosted()} formats=$formats"
+    }
+
+    private fun JsonObject.playability(): String? =
+        ((this["playabilityStatus"] as? JsonObject)?.get("status") as? JsonPrimitive)?.contentOrNull
+
+    private fun JsonObject.isExternallyHosted(): Boolean =
+        ((this["videoDetails"] as? JsonObject)?.get("isExternallyHostedPodcast") as? JsonPrimitive)
+            ?.booleanOrNull == true
+
+    private fun JsonObject.formats(): List<JsonObject> {
+        val streaming = this["streamingData"] as? JsonObject ?: return emptyList()
+        return listOf("formats", "adaptiveFormats")
+            .flatMap { key -> (streaming[key] as? JsonArray).orEmpty() }
+            .mapNotNull { it as? JsonObject }
+    }
+
+    /**
+     * A format's own URL, or the one inside its `signatureCipher`. A feed's
+     * enclosure needs no signature, so a cipher around one is just packaging;
+     * a cipher around a googlevideo URL is not taken here (see [isYouTubeMedia]).
+     */
+    private fun JsonObject.mediaUrl(): String? {
+        string("url")?.takeIf { it.startsWith("http") }?.let { return it }
+        val cipher = string("signatureCipher") ?: return null
+        return cipher.split('&')
+            .firstOrNull { it.startsWith("url=") }
+            ?.removePrefix("url=")
+            ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            ?.takeIf { it.startsWith("http") && !it.isYouTubeMedia() }
+    }
+
+    private fun String.isYouTubeMedia(): Boolean {
+        val host = runCatching { java.net.URI(this).host }.getOrNull()?.lowercase() ?: return false
+        return host.endsWith("googlevideo.com") || host.endsWith("youtube.com")
     }
 
     private fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
