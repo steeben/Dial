@@ -111,6 +111,28 @@ class PlaylistSyncTest {
     }
 
     @Test
+    fun `a song added in Dial finds its playlist under either id`() {
+        val collections = mapOf(
+            "VLLM" to record("VLLM", "a"),
+            "PL2" to record("PL2", "b"),
+            "MPREb_1" to record("MPREb_1", "c", playlist = false),
+        )
+        assertEquals("VLLM", PlaylistSync.recordFor("VLLM", collections)?.id)
+        assertEquals("VLLM", PlaylistSync.recordFor("LM", collections)?.id)
+        assertEquals("PL2", PlaylistSync.recordFor("VLPL2", collections)?.id)
+        assertNull(PlaylistSync.recordFor("VLPL3", collections))
+        // An album is never a playlist to keep updated.
+        assertNull(PlaylistSync.recordFor("MPREb_1", collections))
+    }
+
+    @Test
+    fun `nothing is scheduled until a playlist is downloaded`() {
+        assertFalse(PlaylistSync.anySyncable(emptyMap()))
+        assertFalse(PlaylistSync.anySyncable(mapOf("MPREb_1" to record("MPREb_1", "a", playlist = false))))
+        assertTrue(PlaylistSync.anySyncable(mapOf("VLLM" to record("VLLM", "a"))))
+    }
+
+    @Test
     fun `deleting a release keeps the tracks another release lists`() {
         val collections = mapOf(
             "one" to record("one", "a", "b", "c"),

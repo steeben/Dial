@@ -81,6 +81,7 @@ import com.music.bitchord.data.model.SearchHistoryEntity
 import com.music.bitchord.data.model.EntityType
 import com.music.bitchord.data.settings.SearchHistory
 import com.music.bitchord.download.Downloads
+import com.music.bitchord.download.PlaylistSync
 import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -1044,6 +1045,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     // Liked Music is now out of date either way.
                     libraryStale = true
+                    // A downloaded Liked songs keeps every new like offline.
+                    if (status == LikeStatus.LIKE && song != null && song.localUri == null) {
+                        PlaylistSync.added(
+                            getApplication(),
+                            YtMusicRepository.LIKED_MUSIC,
+                            listOf(song),
+                            atStart = true,
+                        )
+                    }
                     if (status != LikeStatus.LIKE) dropFromLikedLists(videoId)
                     // Clearing the heart means forgetting the song, not
                     // demoting it — see [forgetFromLibrary].
@@ -1638,6 +1648,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // reachable from a row's own menu on it — so the tracks go
                 // into it for the same reason [addSuggestedSong] does.
                 fresh.forEach { appendToOpenPlaylist(playlist.browseId, it, added[it.videoId]) }
+                // A downloaded playlist downloads what goes into it.
+                PlaylistSync.added(getApplication(), playlist.browseId, fresh)
                 AddOutcome.ADDED
             },
             onFailure = { AddOutcome.FAILED },
@@ -1829,6 +1841,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                     appendToOpenPlaylist(browseId, song, added[song.videoId])
+                    PlaylistSync.added(getApplication(), browseId, listOf(song))
                 },
                 onFailure = {},
             )

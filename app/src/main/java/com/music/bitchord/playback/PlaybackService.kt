@@ -118,6 +118,7 @@ import com.music.bitchord.data.model.artworkAt
 import com.music.bitchord.data.model.QueueTier
 import com.music.bitchord.data.sources.SourceRegistry
 import com.music.bitchord.download.Downloads
+import com.music.bitchord.download.PlaylistSync
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicLong
@@ -3530,10 +3531,20 @@ class PlaybackService : MediaLibraryService() {
         // the optimistic state with YouTube in the background.
         LikeState.set(videoId, target)
         refreshCustomLayouts()
-        val metadata = player?.currentMediaItem?.takeIf { it.mediaId == videoId }?.mediaMetadata
+        val item = player?.currentMediaItem?.takeIf { it.mediaId == videoId }
+        val metadata = item?.mediaMetadata
         favoriteActionJob = scope.launch {
             YtMusicRepository.rate(videoId, target)
                 .onSuccess {
+                    // A downloaded Liked songs keeps every new like offline.
+                    if (target == LikeStatus.LIKE && item != null) {
+                        PlaylistSync.added(
+                            this@PlaybackService,
+                            YtMusicRepository.LIKED_MUSIC,
+                            listOf(item.toSong()),
+                            atStart = true,
+                        )
+                    }
                     com.music.bitchord.data.spotify.SpotifyLikeSync.mirror(
                         metadata?.title?.toString(),
                         metadata?.artist?.toString(),

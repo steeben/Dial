@@ -312,10 +312,13 @@ object AppSettings {
 
     /**
      * Check the playlists downloaded whole for newly added songs and download
-     * them, in the background. Off by default: it spends data and storage
-     * without being asked each time. See [com.music.bitchord.download.PlaylistSync].
+     * them, in the background. On by default: to download a playlist is to ask
+     * for it to stay on the device, songs added later included, so downloading
+     * Liked songs keeps every future like offline as well. It costs nothing
+     * until a playlist is downloaded. A listener who turned it off keeps it off.
+     * See [com.music.bitchord.download.PlaylistSync].
      */
-    val syncDownloadedPlaylists = MutableStateFlow(false)
+    val syncDownloadedPlaylists = MutableStateFlow(true)
 
     /** Whether the active network charges for data. `null` while offline. */
     val meteredConnection = MutableStateFlow<Boolean?>(null)
@@ -1112,7 +1115,7 @@ object AppSettings {
         wifiOnlyDownloads.value = prefs.getBoolean(KEY_WIFI_ONLY_DOWNLOADS, true)
         exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
         downloadCanvases.value = prefs.getBoolean(KEY_DOWNLOAD_CANVASES, false)
-        syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
+        syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, true)
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
         smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
         automixSameAlbum.value = prefs.getBoolean(KEY_AUTOMIX_SAME_ALBUM, false)
