@@ -383,14 +383,42 @@ internal fun PlaybackQualityLabel(
  * rate, bitrate, channels. Null while the setting is off, and until there is
  * something measured to state. Shown by [OutputCaption] in place of the
  * output's name.
+ *
+ * A song change clears the measurement ([NerdStats.onTrackTransition]) and
+ * the next song's comes in parts a moment later. Shown as it is, each skip
+ * flashed the output's name and then a short line before the full one. So
+ * the line on screen is held: a cleared measurement keeps the old line for
+ * up to [NERD_STATS_HOLD_MS], and a new line replaces a shown one only
+ * after it is the same for [NERD_STATS_SETTLE_MS].
  */
 @Composable
 internal fun rememberNerdStatsLine(): String? {
     val showNerdStats by PlayerSettings.showNerdStats.collectAsStateWithLifecycle()
     if (!showNerdStats) return null
     val nerdStats by NerdStats.current.collectAsStateWithLifecycle()
-    return nerdStats?.describe()
+    val live = nerdStats?.describe()
+    var shown by remember { mutableStateOf(live) }
+    LaunchedEffect(live) {
+        when {
+            live == null -> {
+                delay(NERD_STATS_HOLD_MS)
+                shown = null
+            }
+            shown == null -> shown = live
+            live != shown -> {
+                delay(NERD_STATS_SETTLE_MS)
+                shown = live
+            }
+        }
+    }
+    return shown
 }
+
+/** How long a cleared Stats for nerds line stays while the next song is measured. */
+private const val NERD_STATS_HOLD_MS = 3_000L
+
+/** How long a changed line must stay the same before it is shown. */
+private const val NERD_STATS_SETTLE_MS = 400L
 
 /**
  * The Automix half of Stats for nerds, among the controls where the volume bar
