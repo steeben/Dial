@@ -296,8 +296,8 @@
     <string name="video_quality_subtitle">สำหรับมิวสิกวิดีโอ และมิวสิกวิดีโอที่แสดงเป็น Canvas ของเพลง คุณภาพสูงสุดใช้สูงสุด 4K ตัวเลือกนี้ใช้ข้อมูลและแบตเตอรี่มากขึ้นมาก และอาจช้าในโทรศัพท์ที่สเปกต่ำ</string>
     <string name="video_quality_mobile">ข้อมูลมือถือ</string>
     <string name="video_quality_mobile_off_note">เมื่อใช้ข้อมูลมือถือ จะไม่เล่น Canvas หรือวิดีโอ เครื่องเล่นจะแสดงภาพปกและเล่นเพลงตามปกติ Canvas ที่บันทึกไว้กับเพลงที่ดาวน์โหลดยังคงเล่นได้</string>
-    <string name="bluetooth_video_delay">หน่วงวิดีโอเมื่อใช้ Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">หน่วงวิดีโอตามเวลานี้เมื่อเสียงออกทาง Bluetooth เพราะเสียง Bluetooth มาช้า หากภาพมาก่อนเสียง ให้ตั้งค่าที่สูงขึ้น</string>
+    <string name="bluetooth_video_delay">ซิงก์วิดีโอเมื่อใช้ Bluetooth</string>
+    <string name="bluetooth_video_delay_subtitle">Dial อ่านค่าหน่วงของ Bluetooth จากเอาต์พุตเสียง แล้วหน่วงวิดีโอตามเวลานั้น หากภาพและเสียงยังไม่ตรงกัน ให้เลื่อนแถบเลื่อน บวกจะหน่วงวิดีโอมากขึ้น ลบจะเลื่อนวิดีโอไปข้างหน้า</string>
     <string name="video_quality_max">คุณภาพสูงสุด</string>
     <string name="high_performance_mode">โหมดประสิทธิภาพสูง</string>
     <string name="high_performance_subtitle">ขออัตรารีเฟรชหน้าจอที่สูงขึ้น</string>

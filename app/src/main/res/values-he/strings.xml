@@ -263,8 +263,8 @@
     <string name="video_quality_subtitle">לקליפים ולקליפ שמוצג כ-Canvas של שיר. איכות מרבית משתמשת בעד 4K. היא צורכת הרבה יותר נתונים וסוללה, ועלולה להיות איטית בטלפונים חלשים.</string>
     <string name="video_quality_mobile">נתונים סלולריים</string>
     <string name="video_quality_mobile_off_note">בנתונים סלולריים לא מתנגן Canvas או וידאו. הנגן מציג את תמונת העטיפה והמוזיקה מתנגנת כרגיל. Canvas שנשמר עם שיר שהורד עדיין מתנגן.</string>
-    <string name="bluetooth_video_delay">השהיית וידאו ב-Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">משהה את הווידאו בזמן הזה כשהצליל עובר ל-Bluetooth, כי צליל Bluetooth מגיע באיחור. אם התמונה מקדימה את הצליל, הגדירו ערך גבוה יותר.</string>
+    <string name="bluetooth_video_delay">סנכרון וידאו ב-Bluetooth</string>
+    <string name="bluetooth_video_delay_subtitle">Dial קורא את השהיית ה-Bluetooth מיציאת השמע ומשהה את הווידאו בזמן הזה. אם התמונה והצליל עדיין לא תואמים, הזיזו את המחוון. פלוס משהה את הווידאו יותר. מינוס מקדים אותו.</string>
     <string name="video_quality_max">איכות מרבית</string>
     <string name="high_performance_mode">מצב ביצועים גבוהים</string>
     <string name="high_performance_subtitle">מבקש קצב רענון מסך גבוה יותר</string>

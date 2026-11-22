@@ -262,8 +262,8 @@
     <string name="video_quality_subtitle">Für Musikvideos und für ein Musikvideo, das als Canvas eines Titels gezeigt wird. Maximale Qualität verwendet bis zu 4K. Sie braucht viel mehr Daten und Akku und kann auf schwachen Geräten langsam sein.</string>
     <string name="video_quality_mobile">Mobile Daten</string>
     <string name="video_quality_mobile_off_note">Mit mobilen Daten wird kein Canvas und kein Video abgespielt. Der Player zeigt das Cover, und die Musik läuft wie gewohnt. Ein mit einem heruntergeladenen Song gespeichertes Canvas wird weiterhin abgespielt.</string>
-    <string name="bluetooth_video_delay">Video-Verzögerung bei Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">Hält das Video um diese Zeit zurück, wenn der Ton über Bluetooth läuft, weil Bluetooth-Ton später kommt. Wenn das Bild vor dem Ton läuft, stelle einen höheren Wert ein.</string>
+    <string name="bluetooth_video_delay">Bluetooth-Video-Synchronisierung</string>
+    <string name="bluetooth_video_delay_subtitle">Dial liest die Bluetooth-Verzögerung aus der Audioausgabe und hält das Video um diese Zeit zurück. Wenn Bild und Ton trotzdem nicht passen, bewege den Regler. Plus hält das Video weiter zurück. Minus zieht es nach vorn.</string>
     <string name="video_quality_max">Maximale Qualität</string>
     <string name="high_performance_mode">Hochleistungsmodus</string>
     <string name="high_performance_subtitle">Fordert eine höhere Bildwiederholrate an</string>

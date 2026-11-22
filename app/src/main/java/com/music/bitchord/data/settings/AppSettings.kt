@@ -633,12 +633,12 @@ object AppSettings {
     val videoQualityMobile = MutableStateFlow(VideoQuality.MOBILE_DEFAULT)
 
     /**
-     * How far the music video picture is held back while the sound goes to a
-     * Bluetooth output, from Settings, Performance. Bluetooth sound comes out
-     * late, and on many headsets the phone does not know by how much, so the
-     * audio position runs ahead of what is heard. Zero is off.
+     * A correction to the Bluetooth delay the music video is held back by,
+     * from Settings, Performance. The delay itself is read from the output
+     * (see [com.music.bitchord.playback.audio.OutputLatency]); this is added
+     * to it, plus to hold the picture back more, minus to bring it forward.
      */
-    val bluetoothVideoDelayMs = MutableStateFlow(DEFAULT_BLUETOOTH_VIDEO_DELAY_MS)
+    val bluetoothVideoOffsetMs = MutableStateFlow(0)
 
     /** The video quality for the connection the phone has now. */
     val videoQualityNow: VideoQuality
@@ -1201,8 +1201,8 @@ object AppSettings {
                 allowed = VideoQuality.MOBILE_CHOICES,
             )
         spotifyCanvasAutoHide.value = prefs.getBoolean(KEY_SPOTIFY_CANVAS_AUTO_HIDE, true)
-        bluetoothVideoDelayMs.value = prefs.getInt(KEY_BLUETOOTH_VIDEO_DELAY_MS, DEFAULT_BLUETOOTH_VIDEO_DELAY_MS)
-            .coerceIn(0, MAX_BLUETOOTH_VIDEO_DELAY_MS)
+        bluetoothVideoOffsetMs.value = prefs.getInt(KEY_BLUETOOTH_VIDEO_OFFSET_MS, 0)
+            .coerceIn(-MAX_BLUETOOTH_VIDEO_OFFSET_MS, MAX_BLUETOOTH_VIDEO_OFFSET_MS)
         prioritizeSpotifyCanvas.value = prefs.getBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, false)
         animatedArt.value = com.music.bitchord.data.canvas.AnimatedArtPrefs(
             // Before the order existed, the Spotify screen's switch was the
@@ -1899,11 +1899,11 @@ object AppSettings {
         prefs.edit().putString(KEY_VIDEO_QUALITY_MOBILE, value.name).apply()
     }
 
-    fun setBluetoothVideoDelayMs(value: Int) {
-        val normalized = value.coerceIn(0, MAX_BLUETOOTH_VIDEO_DELAY_MS)
-        if (bluetoothVideoDelayMs.value == normalized) return
-        bluetoothVideoDelayMs.value = normalized
-        prefs.edit().putInt(KEY_BLUETOOTH_VIDEO_DELAY_MS, normalized).apply()
+    fun setBluetoothVideoOffsetMs(value: Int) {
+        val normalized = value.coerceIn(-MAX_BLUETOOTH_VIDEO_OFFSET_MS, MAX_BLUETOOTH_VIDEO_OFFSET_MS)
+        if (bluetoothVideoOffsetMs.value == normalized) return
+        bluetoothVideoOffsetMs.value = normalized
+        prefs.edit().putInt(KEY_BLUETOOTH_VIDEO_OFFSET_MS, normalized).apply()
     }
 
     fun setSpotifyCanvasAutoHide(value: Boolean) {
@@ -2544,8 +2544,7 @@ object AppSettings {
 
     const val MIN_LYRICS_OFFSET_MS = -5_000
     const val MAX_LYRICS_OFFSET_MS = 5_000
-    const val DEFAULT_BLUETOOTH_VIDEO_DELAY_MS = 150
-    const val MAX_BLUETOOTH_VIDEO_DELAY_MS = 500
+    const val MAX_BLUETOOTH_VIDEO_OFFSET_MS = 300
 
     const val DEFAULT_UPGRADE_LENGTH_SLACK_SECONDS = 3
     const val MIN_UPGRADE_LENGTH_SLACK_SECONDS = 0
@@ -2623,7 +2622,7 @@ object AppSettings {
     private const val KEY_CANVAS_OVER_CELLULAR = "canvas_over_cellular"
     private const val KEY_VIDEO_QUALITY_WIFI = "video_quality_wifi"
     private const val KEY_VIDEO_QUALITY_MOBILE = "video_quality_mobile"
-    private const val KEY_BLUETOOTH_VIDEO_DELAY_MS = "bluetooth_video_delay_ms"
+    private const val KEY_BLUETOOTH_VIDEO_OFFSET_MS = "bluetooth_video_offset_ms"
     private const val KEY_SPOTIFY_CANVAS_AUTO_HIDE = "spotify_canvas_auto_hide"
     private const val KEY_PRIORITIZE_SPOTIFY_CANVAS = "prioritize_spotify_canvas"
     private const val KEY_ANIMATED_ART_ORDER = "animated_art_order"

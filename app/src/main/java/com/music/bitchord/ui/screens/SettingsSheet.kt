@@ -323,7 +323,7 @@ fun SettingsScreen(
     val canvasOverCellular by AppSettings.canvasOverCellular.collectAsStateWithLifecycle()
     val videoQualityWifi by AppSettings.videoQualityWifi.collectAsStateWithLifecycle()
     val videoQualityMobile by AppSettings.videoQualityMobile.collectAsStateWithLifecycle()
-    val bluetoothVideoDelayMs by AppSettings.bluetoothVideoDelayMs.collectAsStateWithLifecycle()
+    val bluetoothVideoOffsetMs by AppSettings.bluetoothVideoOffsetMs.collectAsStateWithLifecycle()
     val fullBleedArtwork by AppSettings.fullBleedArtwork.collectAsStateWithLifecycle()
     val playerTheme by AppSettings.playerTheme.collectAsStateWithLifecycle()
     val syncedLyrics by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
@@ -1759,18 +1759,19 @@ fun SettingsScreen(
                     icon = Icons.Rounded.Bluetooth,
                     title = bluetoothVideoDelayTitle,
                     subtitle = stringResource(R.string.bluetooth_video_delay_subtitle),
-                    value = if (bluetoothVideoDelayMs == 0) {
-                        stringResource(R.string.off)
-                    } else {
-                        "$bluetoothVideoDelayMs ms"
+                    value = when {
+                        bluetoothVideoOffsetMs > 0 -> "+$bluetoothVideoOffsetMs ms"
+                        bluetoothVideoOffsetMs < 0 -> "\u2212${-bluetoothVideoOffsetMs} ms"
+                        else -> "0 ms"
                     },
-                    sliderValue = bluetoothVideoDelayMs.toFloat(),
+                    sliderValue = bluetoothVideoOffsetMs.toFloat(),
                     onSliderValue = { value ->
-                        AppSettings.setBluetoothVideoDelayMs((value / 10f).roundToInt() * 10)
+                        AppSettings.setBluetoothVideoOffsetMs((value / 10f).roundToInt() * 10)
                     },
-                    valueRange = 0f..AppSettings.MAX_BLUETOOTH_VIDEO_DELAY_MS.toFloat(),
+                    valueRange = -AppSettings.MAX_BLUETOOTH_VIDEO_OFFSET_MS.toFloat()..
+                        AppSettings.MAX_BLUETOOTH_VIDEO_OFFSET_MS.toFloat(),
                     // 10 ms stops.
-                    steps = AppSettings.MAX_BLUETOOTH_VIDEO_DELAY_MS / 10 - 1,
+                    steps = AppSettings.MAX_BLUETOOTH_VIDEO_OFFSET_MS * 2 / 10 - 1,
                 )
             }
             val staticBackgroundTitle = stringResource(R.string.static_background)

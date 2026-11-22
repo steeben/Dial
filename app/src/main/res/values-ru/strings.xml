@@ -272,8 +272,8 @@
     <string name="video_quality_subtitle">Для музыкальных клипов и для клипа, который показывается как Canvas песни. «Максимальное качество» использует до 4K. Оно расходует намного больше трафика и заряда и может работать медленно на слабых телефонах.</string>
     <string name="video_quality_mobile">Мобильный интернет</string>
     <string name="video_quality_mobile_off_note">В мобильной сети Canvas и видео не воспроизводятся. Плеер показывает обложку, музыка играет как обычно. Canvas, сохранённый вместе со скачанной песней, по-прежнему воспроизводится.</string>
-    <string name="bluetooth_video_delay">Задержка видео при Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">Задерживает видео на это время, когда звук идёт через Bluetooth, потому что звук Bluetooth приходит позже. Если картинка опережает звук, задайте большее значение.</string>
+    <string name="bluetooth_video_delay">Синхронизация видео по Bluetooth</string>
+    <string name="bluetooth_video_delay_subtitle">Dial считывает задержку Bluetooth с аудиовыхода и задерживает видео на это время. Если картинка и звук всё ещё не совпадают, сдвиньте ползунок. Плюс задерживает видео сильнее. Минус сдвигает его вперёд.</string>
     <string name="video_quality_max">Максимальное качество</string>
     <string name="high_performance_mode">Режим высокой производительности</string>
     <string name="high_performance_subtitle">Запрашивает более высокую частоту обновления экрана</string>

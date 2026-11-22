@@ -302,8 +302,8 @@
     <string name="video_quality_subtitle">Müzik videoları ve bir şarkının Canvas\'ı olarak gösterilen müzik videosu için. En yüksek kalite 4K\'ya kadar kullanır. Çok daha fazla veri ve pil kullanır, zayıf telefonlarda yavaş olabilir.</string>
     <string name="video_quality_mobile">Mobil veri</string>
     <string name="video_quality_mobile_off_note">Mobil veride Canvas veya video oynatılmaz. Oynatıcı kapak görselini gösterir ve müzik her zamanki gibi çalar. İndirilen bir şarkıyla kaydedilen Canvas yine de oynatılır.</string>
-    <string name="bluetooth_video_delay">Bluetooth video gecikmesi</string>
-    <string name="bluetooth_video_delay_subtitle">Ses Bluetooth\'a gittiğinde videoyu bu süre kadar geciktirir, çünkü Bluetooth sesi geç gelir. Görüntü sesten önce gidiyorsa daha yüksek bir değer seçin.</string>
+    <string name="bluetooth_video_delay">Bluetooth video senkronu</string>
+    <string name="bluetooth_video_delay_subtitle">Dial, Bluetooth gecikmesini ses çıkışından okur ve videoyu bu süre kadar geciktirir. Görüntü ve ses yine de uyuşmuyorsa kaydırıcıyı hareket ettirin. Artı videoyu daha çok geciktirir. Eksi öne alır.</string>
     <string name="video_quality_max">En yüksek kalite</string>
     <string name="high_performance_mode">Yüksek performans modu</string>
     <string name="high_performance_subtitle">Daha yüksek bir ekran yenileme hızı ister</string>

@@ -257,8 +257,8 @@
     <string name="video_quality_subtitle">适用于音乐视频，以及作为歌曲 Canvas 显示的音乐视频。最高画质最高使用 4K，会消耗更多流量和电量，在性能较弱的手机上可能较慢。</string>
     <string name="video_quality_mobile">移动数据</string>
     <string name="video_quality_mobile_off_note">使用移动数据时不播放 Canvas 或视频。播放器显示封面，音乐照常播放。随已下载歌曲保存的 Canvas 仍会播放。</string>
-    <string name="bluetooth_video_delay">蓝牙视频延迟</string>
-    <string name="bluetooth_video_delay_subtitle">声音通过蓝牙输出时，将视频推迟这段时间，因为蓝牙声音会晚到。如果画面比声音快，请调高数值。</string>
+    <string name="bluetooth_video_delay">蓝牙视频同步</string>
+    <string name="bluetooth_video_delay_subtitle">Dial 从音频输出读取蓝牙延迟，并将视频推迟相同的时间。如果画面和声音仍然不同步，请拖动滑块。加号让视频更晚，减号让视频提前。</string>
     <string name="video_quality_max">最高画质</string>
     <string name="high_performance_mode">高性能模式</string>
     <string name="high_performance_subtitle">请求更高的屏幕刷新率</string>

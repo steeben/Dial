@@ -152,6 +152,15 @@ fun AudioPipelineDialog(
     val nerdStats by NerdStats.current.collectAsStateWithLifecycle()
     val outputStatus by AudioOutputStatus.current.collectAsStateWithLifecycle()
     val bitPerfect by BitPerfectOutput.status.collectAsStateWithLifecycle()
+    val outputLatency by com.music.bitchord.playback.audio.OutputLatency.reading.collectAsStateWithLifecycle()
+    val videoOffsetMs by AppSettings.bluetoothVideoOffsetMs.collectAsStateWithLifecycle()
+    // The output delay is read while this is open, so it shows without a video playing.
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            com.music.bitchord.playback.audio.OutputLatency.sample()
+            kotlinx.coroutines.delay(1_000L)
+        }
+    }
 
     val eqEnabled by AppSettings.equalizerEnabled.collectAsStateWithLifecycle()
     val eqPreset by AppSettings.equalizerPreset.collectAsStateWithLifecycle()
@@ -531,6 +540,17 @@ fun AudioPipelineDialog(
                         bt.mode?.let { PipelineRow("Codec Mode", it) }
                     } else {
                         PipelineRow("Codec", "System Managed")
+                    }
+                    outputLatency?.let { reading ->
+                        PipelineRow(
+                            "Output Delay",
+                            listOfNotNull(
+                                reading.timestampMs?.let { "clock $it ms" } ?: "clock without timestamps",
+                                reading.outputMs?.let { "output $it ms" },
+                            ).joinToString(" · "),
+                        )
+                        val videoMs = (reading.extraMs + videoOffsetMs).coerceAtLeast(0L)
+                        PipelineRow("Video Held Back", "$videoMs ms")
                     }
                 }
 

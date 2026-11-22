@@ -257,8 +257,8 @@
     <string name="video_quality_subtitle">ミュージックビデオと、曲の Canvas として表示されるミュージックビデオに適用されます。最高画質は最大 4K を使います。データとバッテリーを大幅に多く使い、性能の低い端末では動作が遅くなることがあります。</string>
     <string name="video_quality_mobile">モバイルデータ</string>
     <string name="video_quality_mobile_off_note">モバイルデータでは Canvas と動画を再生しません。プレーヤーにはカバーアートが表示され、音楽は通常どおり再生されます。ダウンロードした曲と一緒に保存した Canvas は再生されます。</string>
-    <string name="bluetooth_video_delay">Bluetooth の動画遅延</string>
-    <string name="bluetooth_video_delay_subtitle">音声が Bluetooth に出力されるとき、動画をこの時間だけ遅らせます。Bluetooth の音声は遅れて届くためです。映像が音より先に進む場合は、値を大きくしてください。</string>
+    <string name="bluetooth_video_delay">Bluetooth 動画の同期</string>
+    <string name="bluetooth_video_delay_subtitle">Dial はオーディオ出力から Bluetooth の遅延を読み取り、その時間だけ動画を遅らせます。それでも映像と音が合わない場合は、スライダーを動かしてください。プラスで動画をさらに遅らせ、マイナスで早めます。</string>
     <string name="video_quality_max">最高画質</string>
     <string name="high_performance_mode">高パフォーマンスモード</string>
     <string name="high_performance_subtitle">より高いディスプレイリフレッシュレートをリクエストします</string>

@@ -263,8 +263,8 @@
     <string name="video_quality_subtitle">Pour les clips musicaux et pour un clip affiché comme Canvas d\'un titre. Qualité max utilise jusqu\'à la 4K. Elle consomme beaucoup plus de données et de batterie, et peut être lente sur les téléphones peu puissants.</string>
     <string name="video_quality_mobile">Données mobiles</string>
     <string name="video_quality_mobile_off_note">Avec les données mobiles, aucun Canvas ni aucune vidéo n\'est lu. Le lecteur affiche la pochette et la musique est lue normalement. Un Canvas enregistré avec un titre téléchargé est toujours lu.</string>
-    <string name="bluetooth_video_delay">Délai vidéo en Bluetooth</string>
-    <string name="bluetooth_video_delay_subtitle">Retarde la vidéo de cette durée quand le son passe par Bluetooth, car le son Bluetooth arrive en retard. Si l’image est en avance sur le son, augmentez la valeur.</string>
+    <string name="bluetooth_video_delay">Synchro vidéo en Bluetooth</string>
+    <string name="bluetooth_video_delay_subtitle">Dial lit le délai Bluetooth de la sortie audio et retarde la vidéo de ce temps. Si l’image et le son ne correspondent toujours pas, déplacez le curseur. Plus retarde davantage la vidéo. Moins l’avance.</string>
     <string name="video_quality_max">Qualité max</string>
     <string name="high_performance_mode">Mode haute performance</string>
     <string name="high_performance_subtitle">Demande un taux de rafraîchissement plus élevé</string>

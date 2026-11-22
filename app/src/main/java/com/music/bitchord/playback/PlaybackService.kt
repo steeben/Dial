@@ -48,6 +48,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.AudioTrackAudioOutputProvider
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
@@ -82,6 +83,7 @@ import com.music.bitchord.playback.cast.CastController
 import com.music.bitchord.playback.cast.CastPlayback
 import com.music.bitchord.playback.cast.CastSink
 import com.music.bitchord.playback.cast.CastStream
+import com.music.bitchord.playback.audio.OutputLatency
 import com.music.bitchord.playback.audio.PrecisionAudioSink
 import com.music.bitchord.playback.audio.SinkSplice
 import com.music.bitchord.playback.audio.SpliceFeed
@@ -7490,6 +7492,12 @@ class PlaybackService : MediaLibraryService() {
             enableAudioTrackPlaybackParams: Boolean,
         ): AudioSink {
             val defaultSink = DefaultAudioSink.Builder(context)
+                // The stock AudioTrack output, wrapped only so the delay of
+                // the output can be read off the track the clock comes from —
+                // see [OutputLatency]. Every track is built as before.
+                .setAudioOutputProvider(
+                    OutputLatency.wrap(AudioTrackAudioOutputProvider.Builder(context).build()),
+                )
                 .setEnableFloatOutput(enableFloatOutput)
                 // Speed handled by the AudioTrack itself on a float-capable
                 // route, rather than by Sonic. `DefaultAudioSink.configure`
