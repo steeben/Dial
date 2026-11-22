@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -76,6 +77,7 @@ fun AccountAndScrobblingScreen(
     val spotifyLikeSync by AppSettings.spotifyLikeSync.collectAsStateWithLifecycle()
     val spotifyPlayedPlaylist by AppSettings.spotifyPlayedPlaylist.collectAsStateWithLifecycle()
     val hideUserInfo by AppSettings.hideUserInfo.collectAsStateWithLifecycle()
+    val youtubePremiumAudio by AppSettings.youtubePremiumAudio.collectAsStateWithLifecycle()
     var showPlayedPlaylist by remember { mutableStateOf(false) }
     if (showPlayedPlaylist) PlayedInDialDialog(onDismiss = { showPlayedPlaylist = false })
 
@@ -112,6 +114,21 @@ fun AccountAndScrobblingScreen(
                     title = stringResource(R.string.listen_as),
                     subtitle = channelName ?: stringResource(R.string.default_youtube_profile),
                     onClick = onSwitchChannel,
+                )
+                // With the account because it is a claim about the account: only a
+                // signed-in Premium session is offered the higher Opus rung.
+                RowDivider()
+                SettingsRow(
+                    icon = Icons.Rounded.AutoAwesome,
+                    title = stringResource(R.string.youtube_premium_audio),
+                    subtitle = stringResource(R.string.youtube_premium_audio_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = youtubePremiumAudio,
+                            onCheckedChange = AppSettings::setYoutubePremiumAudio,
+                        )
+                    },
+                    onClick = { AppSettings.setYoutubePremiumAudio(!youtubePremiumAudio) },
                 )
                 FullWidthDivider()
                 DestructiveRow(label = stringResource(R.string.sign_out), danger = true, onClick = onSignOut)
