@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.SystemClock
 import com.music.bitchord.R
+import com.music.bitchord.data.NerdStats
 import com.music.bitchord.data.TrackLog
 import com.music.bitchord.playback.smart.AutomixAnalysisSource
 import androidx.media3.common.C
@@ -737,6 +738,14 @@ object AudioCache {
         val analysis = AutomixAnalysisSource.requestsYouTubeOpus(
             spec.uri.getQueryParameter(AutomixAnalysisSource.OPUS_QUERY_PARAMETER),
         )
+        // The YouTube container carries no bitrate, so the figure the resolver
+        // picked is kept with the bytes: a later play from disk never resolves,
+        // and Stats for nerds still has a bitrate to show. See [servedKbpsOf].
+        val kbps = if (origin == Origin.YOUTUBE && !analysis) {
+            NerdStats.pickedBitrateKbps(mediaId)?.takeIf { it > 0 }
+        } else {
+            null
+        }
         runCatching {
             val meta = cache.getContentMetadata(key)
             fun has(name: String) = meta.get(name, null as String?) != null
@@ -746,7 +755,8 @@ object AudioCache {
                 meta.get(META_MEDIA_ID, null as String?) == mediaId &&
                 has(META_PLAYBACK) == usedByPlayback &&
                 (usedByPlayback || has(META_ANALYSIS)) &&
-                has(META_PLAYED) == played
+                has(META_PLAYED) == played &&
+                (kbps == null || meta.get(META_KBPS, 0L) == kbps.toLong())
             // Every re-open — a seek, a continuation fetch — passes through
             // here. Only write when something would actually change.
             if (tagged && (song == null || has(META_TITLE))) return
@@ -757,6 +767,7 @@ object AudioCache {
                     mutations.set(META_MEDIA_ID, mediaId)
                     if (usedByPlayback) mutations.set(META_PLAYBACK, "1") else mutations.set(META_ANALYSIS, "1")
                     if (played) mutations.set(META_PLAYED, "1")
+                    if (kbps != null) mutations.set(META_KBPS, kbps.toLong())
                     describe(mutations, song, spec.uri)
                 },
             )
@@ -891,6 +902,25 @@ object AudioCache {
      * song's menu offers to remove it from the cache. Reads the index, so call
      * it off the main thread.
      */
+    /**
+     * The bitrate kept with [mediaId]'s YouTube bytes on disk, for a play
+     * from the cache that never reached the resolver. Null when no entry has
+     * one, or when two entries say different things: then it is not known
+     * which one is playing. Reads the index, so call it off the main thread.
+     */
+    fun servedKbpsOf(mediaId: String): Int? {
+        if (!::cache.isInitialized || mediaId.isBlank()) return null
+        val figures = runCatching {
+            keysOf(mediaId)
+                .filterNot { it.endsWith("#watch") }
+                .mapNotNull { key ->
+                    cache.getContentMetadata(key).get(META_KBPS, 0L).takeIf { it > 0 }?.toInt()
+                }
+                .distinct()
+        }.getOrDefault(emptyList())
+        return figures.singleOrNull()
+    }
+
     fun holds(mediaId: String): Boolean {
         if (!::cache.isInitialized || mediaId.isBlank()) return false
         return keysOf(mediaId).any { key -> cache.getCachedSpans(key).any { it.isCached } }
@@ -1094,6 +1124,9 @@ object AudioCache {
 
     /** Set once the player has played the track from this entry. */
     private const val META_PLAYED = "bc_played"
+
+    /** The YouTube stream's bitrate as the resolver picked it; see [recordServed]. */
+    private const val META_KBPS = "bc_kbps"
     private const val MAX_NOTED_SONGS = 256
     private const val COPY_BUFFER_BYTES = 64 * 1024
 
