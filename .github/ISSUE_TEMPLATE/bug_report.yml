@@ -1,0 +1,100 @@
+name: Bug report
+description: Tell us about a problem in Dial. You must attach a log.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!IMPORTANT]
+        > **You must attach a log to this report. We close reports that do not have a log.**
+        >
+        > Without a log, we cannot find the cause of the problem.
+
+        ### How to get a log
+
+        1. Open Dial.
+        2. Tap your profile picture at the top of Home. Then tap **Settings**.
+        3. Tap **Advanced & experimental options**.
+        4. Turn on **Enable logging**.
+        5. Do the steps that cause the problem again.
+        6. Go back to **Settings › Advanced & experimental options**. Turn off **Enable logging**.
+        7. Tap **Save to phone** or **Share** to get the log file.
+        8. Attach the log file in the "Log" field below.
+
+        Logging stays on when you close the app. If the problem occurs when the app starts, close Dial and open it again while logging is on.
+
+        The log is a text file. You can read it before you attach it. If the file is too large to attach, put it in a .zip file.
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Drag the log file into this box. Or, click the bar below the box and select the file. Attach the full file, not only a part of it.
+      placeholder: Attach the log file here.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem?
+      description: Tell us what occurs. Tell us what you expected to occur.
+      placeholder: When I tap the next button, the song does not change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to cause the problem
+      description: Write each step on a new line.
+      placeholder: |
+        1. Open a playlist.
+        2. Play a song.
+        3. Tap the next button.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Dial version
+      description: "Find it in Settings › Miscellaneous › Check for updates."
+      placeholder: "1.8.6"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: The manufacturer and the model of your phone.
+      placeholder: Samsung Galaxy S24 Ultra
+    validations:
+      required: true
+
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+      description: "Find it in your phone's Settings › About phone."
+      placeholder: "15"
+    validations:
+      required: true
+
+  - type: textarea
+    id: more
+    attributes:
+      label: More information
+      description: Screenshots, screen recordings, or other data that can help. This field is optional.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before you send
+      options:
+        - label: I attached a log file to this report.
+          required: true
+        - label: I know that you close reports that do not have a log.
+          required: true

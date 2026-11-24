@@ -89,6 +89,10 @@ Each release is signed with the same key, so a new version installs over the old
 
 To build it yourself, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Reporting issues
+
+To tell us about a problem, use the [Bug report](https://github.com/steeben/Dial/issues/new/choose) form. You must attach a log. We close reports that do not have a log. The form tells you how to get the log from Settings › Advanced & experimental options › Enable logging.
+
 ---
 
 ## Credits

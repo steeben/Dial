@@ -1,0 +1,31 @@
+name: Feature request
+description: Tell us about a new function or a change that you want in Dial.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for new functions or changes. To tell us about a problem, use the **Bug report** form. Bug reports must have a log.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What do you want?
+      description: Tell us about the function or the change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why do you want it?
+      description: Tell us what this change will help you do.
+    validations:
+      required: true
+
+  - type: textarea
+    id: more
+    attributes:
+      label: More information
+      description: Screenshots, drawings, or examples from other apps. This field is optional.
