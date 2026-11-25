@@ -13,9 +13,6 @@ name: Export debug key (encrypted)
 # new key pair with that script (-NewTransferKey) and commit the new public key.
 on:
   workflow_dispatch:
-  push:
-    branches: ['claude/project-thread-g8gai0']
-    paths: ['.github/workflows/export-debug-key.yml']
 
 permissions:
   contents: read
