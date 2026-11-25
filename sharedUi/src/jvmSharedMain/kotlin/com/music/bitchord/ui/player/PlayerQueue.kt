@@ -9,7 +9,10 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +36,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material3.Icon
@@ -261,6 +265,26 @@ internal fun InlineQueue(
      */
     underDeck: (() -> Dp)? = null,
     modifier: Modifier = Modifier,
+    /** Off where the caller draws its own heading above the list. */
+    showTitle: Boolean = true,
+    /**
+     * Where the list sends the scroll it does not use, in place of
+     * [keepScrollInList]: the sheet the list is in, which moves with it.
+     */
+    listScroll: NestedScrollConnection? = null,
+    /**
+     * Drawn where AutoPlay's songs begin, in place of the AutoPlay heading:
+     * the chips that select how AutoPlay finds more songs. It is given the
+     * heading, to draw when it has no chips. Null keeps the heading.
+     */
+    autoplayStyles: (@Composable (heading: @Composable () -> Unit) -> Unit)? = null,
+    /** Room below the last row, for a list that runs to the foot of the screen. */
+    bottomInset: Dp = 0.dp,
+    /**
+     * The rows of the YT Music layout: the handle is at the end of the row,
+     * and a swipe to the side removes the row.
+     */
+    swipeRows: Boolean = false,
 ) {
     val listState = rememberLazyListState()
     LaunchedEffect(listState) {
@@ -314,21 +338,23 @@ internal fun InlineQueue(
     }
 
     Column(modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.queue),
-                style = MaterialTheme.typography.titleLarge,
-                color = PlayerInk,
-                modifier = Modifier.weight(1f),
-            )
-            if (tracks.user.isNotEmpty()) {
-                QueueClearButton(MaterialTheme.typography.titleMedium, controlsLocked, onClear)
+        if (showTitle) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.queue),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = PlayerInk,
+                    modifier = Modifier.weight(1f),
+                )
+                if (tracks.user.isNotEmpty()) {
+                    QueueClearButton(MaterialTheme.typography.titleMedium, controlsLocked, onClear)
+                }
             }
+            Spacer(Modifier.height(4.dp))
         }
-        Spacer(Modifier.height(4.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -341,12 +367,12 @@ internal fun InlineQueue(
                     .fillMaxWidth()
                     // Without this the sheet treats the list's leftover scroll as a
                     // drag on itself and slides the whole player away.
-                    .nestedScroll(keepScroll)
+                    .nestedScroll(listScroll ?: keepScroll)
                     .then(if (collapsePlayerOnScroll) Modifier.nestedScroll(controlsOnScroll) else Modifier),
                 contentPadding = if (underDeck != null) {
                     remember(underDeck) { underDeckPadding(PLAYER_GUTTER, underDeck) }
                 } else {
-                    PaddingValues(horizontal = PLAYER_GUTTER)
+                    PaddingValues(start = PLAYER_GUTTER, end = PLAYER_GUTTER, bottom = bottomInset)
                 },
             ) {
                 if (tracks.history.isNotEmpty()) {
@@ -363,6 +389,7 @@ internal fun InlineQueue(
                             onClick = { onJumpTo(track.timelineIndex) },
                             onRemove = { onRemove(track.timelineIndex) },
                             locked = controlsLocked,
+                            swipeToRemove = swipeRows,
                             // Dimmed: already played.
                             modifier = queueMotion().alpha(0.6f),
                         )
@@ -382,6 +409,7 @@ internal fun InlineQueue(
                             onClick = { onJumpTo(nowPlaying.timelineIndex) },
                             onRemove = { onRemove(nowPlaying.timelineIndex) },
                             locked = controlsLocked,
+                            swipeToRemove = swipeRows,
                             modifier = queueMotion(),
                         )
                     }
@@ -397,7 +425,7 @@ internal fun InlineQueue(
                             QueueClearButton(MaterialTheme.typography.labelLarge, controlsLocked, onClear)
                         }
                     }
-                    queueSection(tracks.user, QueueSection.USER, drag, controlsLocked, onJumpTo, onRemove)
+                    queueSection(tracks.user, QueueSection.USER, drag, controlsLocked, swipeRows, onJumpTo, onRemove)
                 }
                 if (tracks.context.isNotEmpty()) {
                     item(key = "header-context") {
@@ -412,13 +440,18 @@ internal fun InlineQueue(
                                 .then(queueMotion()),
                         )
                     }
-                    queueSection(tracks.context, QueueSection.CONTEXT, drag, controlsLocked, onJumpTo, onRemove)
+                    queueSection(tracks.context, QueueSection.CONTEXT, drag, controlsLocked, swipeRows, onJumpTo, onRemove)
                 }
                 if (autoplayEnabled || tracks.autoplay.isNotEmpty()) {
                     item(key = "autoplay-heading") {
-                        AutoplayHeading(hasTracks = tracks.autoplay.isNotEmpty(), modifier = queueMotion())
+                        if (autoplayStyles != null) {
+                            val hasTracks = tracks.autoplay.isNotEmpty()
+                            Box(queueMotion()) { autoplayStyles { AutoplayHeading(hasTracks = hasTracks) } }
+                        } else {
+                            AutoplayHeading(hasTracks = tracks.autoplay.isNotEmpty(), modifier = queueMotion())
+                        }
                     }
-                    queueSection(tracks.autoplay, QueueSection.AUTOPLAY, drag, controlsLocked, onJumpTo, onRemove)
+                    queueSection(tracks.autoplay, QueueSection.AUTOPLAY, drag, controlsLocked, swipeRows, onJumpTo, onRemove)
                 }
             }
             // The held row, drawn over the list where the finger is. Positioned
@@ -433,6 +466,7 @@ internal fun InlineQueue(
                         onRemove = {},
                         draggable = true,
                         lifted = true,
+                        swipeToRemove = swipeRows,
                         modifier = Modifier.offset { IntOffset(0, drag.heldTop.roundToInt()) },
                     )
                 }
@@ -452,6 +486,7 @@ private fun LazyListScope.queueSection(
     section: QueueSection,
     drag: QueueDrag,
     locked: Boolean,
+    swipeRows: Boolean,
     onJumpTo: (Int) -> Unit,
     onRemove: (Int) -> Unit,
 ) {
@@ -469,6 +504,7 @@ private fun LazyListScope.queueSection(
             onRemove = { onRemove(track.timelineIndex) },
             locked = locked,
             draggable = !locked,
+            swipeToRemove = swipeRows,
             onDragStart = { drag.start(track.key, section) },
             onDrag = drag::drag,
             onDragEnd = { drag.end(track.key) },
@@ -781,13 +817,38 @@ private fun InlineQueueRow(
     draggable: Boolean = false,
     /** The copy drawn under the finger while the row is being moved. */
     lifted: Boolean = false,
+    /** The YT Music layout's row: the handle at the end, and a swipe that removes it. */
+    swipeToRemove: Boolean = false,
     onDragStart: () -> Unit = {},
     onDrag: (Float) -> Unit = {},
     onDragEnd: () -> Unit = {},
 ) {
+    val handle: @Composable (Modifier) -> Unit = { handleModifier ->
+        Icon(
+            Icons.Rounded.DragHandle,
+            contentDescription = stringResource(Res.string.drag_to_reorder),
+            tint = playerInk(alpha = if (swipeToRemove) 0.7f else 0.4f),
+            modifier = handleModifier
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { onDragStart() },
+                        onDragEnd = { onDragEnd() },
+                        onDragCancel = { onDragEnd() },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            onDrag(amount.y)
+                        },
+                    )
+                },
+        )
+    }
+    val swipe = if (swipeToRemove && !locked && !lifted) rememberRowSwipe(onRemove) else null
+    Box(modifier.fillMaxWidth()) {
+    if (swipe != null) RowSwipeBackground(swipe)
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
+            .then(swipe?.modifier ?: Modifier)
             .clip(RoundedCornerShape(8.dp))
             .background(if (lifted) Color.White.copy(alpha = 0.06f) else Color.Transparent)
             // Disabled rather than ignored: a tap that ripples and then does
@@ -796,27 +857,13 @@ private fun InlineQueueRow(
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (draggable) {
-            Icon(
-                Icons.Rounded.DragHandle,
-                contentDescription = stringResource(Res.string.drag_to_reorder),
-                tint = playerInk(alpha = 0.4f),
-                modifier = Modifier
+        if (draggable && !swipeToRemove) {
+            handle(
+                Modifier
                     .size(20.dp)
                     // The glyph sits well inset in its own box; this pulls it
                     // back to the row's edge.
-                    .offset(x = (-4).dp)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { onDragStart() },
-                            onDragEnd = { onDragEnd() },
-                            onDragCancel = { onDragEnd() },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                onDrag(amount.y)
-                            },
-                        )
-                    },
+                    .offset(x = (-4).dp),
             )
             Spacer(Modifier.width(4.dp))
         }
@@ -854,7 +901,10 @@ private fun InlineQueueRow(
             )
             Spacer(Modifier.width(10.dp))
         }
-        if (!locked) {
+        if (swipeToRemove) {
+            // The swipe removes the row, so the end of the row is the handle's.
+            if (draggable) handle(Modifier.padding(start = 8.dp).size(24.dp))
+        } else if (!locked) {
             Box(
                 modifier = Modifier
                     .size(32.dp)
@@ -870,5 +920,82 @@ private fun InlineQueueRow(
                 )
             }
         }
+    }
+    }
+}
+
+/** How far a queue row must go to the side, as a share of its width, for the release to remove it. */
+internal const val ROW_SWIPE_REMOVE_FRACTION = 0.35f
+
+/**
+ * Whether a row let go at [offsetPx] of a [widthPx] wide row is removed.
+ * A row that did not go [ROW_SWIPE_REMOVE_FRACTION] of the way comes back.
+ */
+internal fun rowSwipeRemoves(offsetPx: Float, widthPx: Float): Boolean =
+    widthPx > 0f && abs(offsetPx) >= widthPx * ROW_SWIPE_REMOVE_FRACTION
+
+/** One queue row's sideways swipe: where the row is, and the gesture that moves it. */
+private class RowSwipe(val offset: Animatable<Float, *>, val modifier: Modifier)
+
+@Composable
+private fun rememberRowSwipe(onRemove: () -> Unit): RowSwipe {
+    val scope = rememberCoroutineScope()
+    val offset = remember { Animatable(0f) }
+    val remove by rememberUpdatedState(onRemove)
+    val modifier = Modifier
+        .pointerInput(Unit) {
+            detectHorizontalDragGestures(
+                onDragEnd = {
+                    val width = size.width.toFloat()
+                    scope.launch {
+                        if (rowSwipeRemoves(offset.value, width)) {
+                            offset.animateTo(if (offset.value < 0f) -width else width, tween(140))
+                            remove()
+                        } else {
+                            offset.animateTo(0f, spring())
+                        }
+                    }
+                },
+                onDragCancel = { scope.launch { offset.animateTo(0f, spring()) } },
+                onHorizontalDrag = { change, amount ->
+                    change.consume()
+                    scope.launch { offset.snapTo(offset.value + amount) }
+                },
+            )
+        }
+        .offset { IntOffset(offset.value.roundToInt(), 0) }
+    return RowSwipe(offset, modifier)
+}
+
+/** What a row leaves behind as it is swiped away: red, with the bin at the side it came from. */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.RowSwipeBackground(swipe: RowSwipe) {
+    Box(
+        Modifier
+            .matchParentSize()
+            .graphicsLayer { alpha = if (swipe.offset.value == 0f) 0f else 1f }
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFE5484D)),
+    ) {
+        Icon(
+            Icons.Rounded.DeleteOutline,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 16.dp)
+                .size(22.dp)
+                .graphicsLayer { alpha = if (swipe.offset.value > 0f) 1f else 0f },
+        )
+        Icon(
+            Icons.Rounded.DeleteOutline,
+            contentDescription = stringResource(Res.string.remove_from_queue),
+            tint = Color.White,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp)
+                .size(22.dp)
+                .graphicsLayer { alpha = if (swipe.offset.value < 0f) 1f else 0f },
+        )
     }
 }
