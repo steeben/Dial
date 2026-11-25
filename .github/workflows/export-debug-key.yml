@@ -1,0 +1,59 @@
+name: Export debug key (encrypted)
+
+# Gives the shared debug signing key (secret DEBUG_KEYSTORE_BASE64) to the
+# maintainer's PC, so that local builds install over CI builds.
+#
+# The repository is public. Thus the job does not upload the key as it is.
+# It encrypts the key with the public key in .github/dial-key-transfer.pub.pem.
+# Only the PC that has the matching private key can decrypt it. The job does
+# not print the key. The artifact is kept for 1 day.
+#
+# Run it by hand from the Actions tab. Then on the PC, do
+# scripts/import-debug-key.ps1 with the downloaded ZIP. For a new PC, make a
+# new key pair with that script (-NewTransferKey) and commit the new public key.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Encrypt and upload the debug key
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Encrypt the key
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "::error::DEBUG_KEYSTORE_BASE64 is not set."
+            exit 1
+          fi
+          work="$RUNNER_TEMP/key"
+          mkdir -p "$work" out
+          printf '%s' "$DEBUG_KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > "$work/dial-shared.keystore"
+          # A random password encrypts the keystore (AES-256). The public key
+          # encrypts the password (RSA-OAEP, SHA-256).
+          openssl rand -hex 32 > "$work/pass.txt"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in "$work/dial-shared.keystore" -out out/keystore.enc -pass "file:$work/pass.txt"
+          openssl pkeyutl -encrypt -pubin -inkey .github/dial-key-transfer.pub.pem \
+            -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
+            -in "$work/pass.txt" -out out/pass.enc
+          # The SHA-256 of the certificate is public data (each signed APK
+          # contains it). The PC uses it to check the result.
+          keytool -list -v -keystore "$work/dial-shared.keystore" -storepass android -alias androiddebugkey \
+            | grep -m1 'SHA256:' | sed 's/.*SHA256: *//' > out/certificate-sha256.txt
+          echo "Certificate SHA-256: $(cat out/certificate-sha256.txt)"
+          rm -rf "$work"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dial-debug-key-encrypted
+          path: out/
+          retention-days: 1
+          if-no-files-found: error
