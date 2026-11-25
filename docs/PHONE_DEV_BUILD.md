@@ -65,10 +65,31 @@ CI signs each build with the key in the `DEBUG_KEYSTORE_BASE64` secret. The
 local build must use the same key. If not, Android does not install it over
 the CI build.
 
-1. Get the shared keystore file. It is a standard debug keystore (store
-   password `android`, alias `androiddebugkey`).
-2. Put it at `%USERPROFILE%\.android\dial-shared.keystore`. Or set
-   `DIAL_KEYSTORE` to its path, or use `-Keystore`.
+GitHub does not show a secret again. Thus the workflow "Export debug key
+(encrypted)" gives you a copy:
+
+1. On GitHub, open **Actions > Export debug key (encrypted) > Run workflow**.
+2. When the run is complete, download the artifact
+   `dial-debug-key-encrypted` (a ZIP) to your Downloads folder. GitHub keeps
+   it for 1 day.
+3. On the PC, do this command:
+
+   ```powershell
+   .\scripts\import-debug-key.ps1
+   ```
+
+The script decrypts the key and puts it at
+`%USERPROFILE%\.android\dial-shared.keystore`. It also makes sure that the
+certificate is the same as the certificate in the workflow output. You can
+also set `DIAL_KEYSTORE` to a different path, or use `-Keystore`.
+
+The repository is public, so the workflow does not upload the key as it is.
+It encrypts the key with `.github/dial-key-transfer.pub.pem`. Only the PC that
+has the matching private key (`%USERPROFILE%\.android\dial-key-transfer.pem`)
+can decrypt it. On a new PC, do `.\scripts\import-debug-key.ps1
+-NewTransferKey`, commit the new public key, and then run the workflow.
+
+You do this one time only. The shared key does not change between builds.
 
 **Caution:** Do not put the keystore in the repository folder. Do not commit
 it. Do not show its contents or its base64 text in a log or a chat.
