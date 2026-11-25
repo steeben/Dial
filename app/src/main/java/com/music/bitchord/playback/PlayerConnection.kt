@@ -105,6 +105,18 @@ fun MediaController.toggleAutoplay() {
 }
 
 /**
+ * Selects an AutoPlay style from the queue's chips. The playback service
+ * owns AutoPlay, so it changes the selection and loads the songs again.
+ * A null [id] is the default selection.
+ */
+fun MediaController.setAutoplayStyle(id: String?) {
+    sendCustomCommand(
+        SessionCommand(ACTION_SET_AUTOPLAY_STYLE, Bundle.EMPTY),
+        bundleOf(EXTRA_AUTOPLAY_STYLE_ID to id),
+    )
+}
+
+/**
  * Routes Shuffle through the playback service so changing its state and
  * reordering the service-owned queue happen as one operation.
  */
@@ -124,6 +136,7 @@ suspend fun MediaController.playBoundedContext(
     shuffle: Boolean = QueueShuffle.enabled.value,
 ) {
     AiMix.onNewQueue()
+    AutoplayStyles.reset()
     val token = BoundedContextRequests.put(
         BoundedContextRequests.Request(
             songs = songs,
@@ -149,6 +162,7 @@ suspend fun MediaController.playBoundedContext(
 /** Clears the previous queue's service and restart state before starting radio. */
 suspend fun MediaController.beginRadioQueue() {
     AiMix.onNewQueue()
+    AutoplayStyles.reset()
     sendCustomCommand(
         SessionCommand(ACTION_BEGIN_RADIO_QUEUE, Bundle.EMPTY),
         Bundle.EMPTY,
@@ -940,6 +954,7 @@ fun mediaIdIn(uri: Uri): String? = if (uri.authority == "source") {
 suspend fun MediaController.playSongs(songs: List<Song>, startIndex: Int) {
     if (songs.isEmpty()) return
     AiMix.onNewQueue()
+    AutoplayStyles.reset()
     sendCustomCommand(
         SessionCommand(ACTION_CLEAR_BOUNDED_CONTEXT, Bundle.EMPTY),
         Bundle.EMPTY,

@@ -194,6 +194,14 @@ import java.util.UUID
 /** Session command used by both the player UI and the media notification. */
 const val ACTION_TOGGLE_AUTOPLAY = "com.music.bitchord.action.TOGGLE_AUTOPLAY"
 
+/**
+ * Session command from the queue's AutoPlay chips: selects the style in
+ * [EXTRA_AUTOPLAY_STYLE_ID] and loads AutoPlay's songs again in that style.
+ * No id is the default selection. See [AutoplayStyles].
+ */
+const val ACTION_SET_AUTOPLAY_STYLE = "com.music.bitchord.action.SET_AUTOPLAY_STYLE"
+const val EXTRA_AUTOPLAY_STYLE_ID = "bitchord.autoplay.styleId"
+
 /** Backoff before each retry of a failed bounded continuation page. */
 private val BOUNDED_CONTINUATION_RETRIES_MS = longArrayOf(2_000L, 5_000L, 15_000L)
 
@@ -815,6 +823,7 @@ class PlaybackService : MediaLibraryService() {
     private val clearBoundedContextCommand = SessionCommand(ACTION_CLEAR_BOUNDED_CONTEXT, Bundle.EMPTY)
     private val favoriteCommand = SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY)
     private val autoplayCommand = SessionCommand(ACTION_TOGGLE_AUTOPLAY, Bundle.EMPTY)
+    private val autoplayStyleCommand = SessionCommand(ACTION_SET_AUTOPLAY_STYLE, Bundle.EMPTY)
     private val shuffleCommand = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
     private val startStationCommand = SessionCommand(ACTION_START_STATION, Bundle.EMPTY)
     private val revertToOriginalCommand = SessionCommand(ACTION_REVERT_TO_ORIGINAL, Bundle.EMPTY)
@@ -3202,6 +3211,37 @@ class PlaybackService : MediaLibraryService() {
     }
 
     /**
+     * Selects the AutoPlay style [id] (null for the default one) and loads
+     * AutoPlay's songs again in it: the songs AutoPlay queued and has not
+     * played are taken out, and the new selection goes in their place. The
+     * playing song and the songs the listener queued stay.
+     */
+    private fun setAutoplayStyle(id: String?) {
+        val before = AutoplayStyles.chosen.value
+        AutoplayStyles.choose(id)
+        if (AutoplayStyles.chosen.value == before) return
+        val party = ListenTogether.state.value
+        // The party's queue is the server's, and its AutoPlay is shared.
+        if (party.inParty || !autoplayEnabled(party)) return
+        autoplayLoadJob?.cancel()
+        autoplayLoadJob = null
+        autoplaySeed = null
+        val dropped = dropAutoplayTracksFromQueue()
+        // Not heard, so they can be suggested again.
+        val droppedIds = dropped.mapTo(HashSet()) { it.mediaId }
+        sessionSongHistory.removeAll { it.videoId in droppedIds }
+        repeatAllStash = emptyList()
+        repeatAllStashSeed = null
+        // Each removal above is a queue edit, and the first one starts a load
+        // for the one free place. That load is stopped, and one for the full
+        // set starts in its place.
+        autoplayLoadJob?.cancel()
+        autoplayLoadJob = null
+        autoplaySeed = null
+        loadAutoplayForCurrentTrack()
+    }
+
+    /**
      * Tops the queue back up to [MAX_QUEUED_AUTOPLAY] AutoPlay-suggested tracks
      * ahead of whatever is currently playing. Run on every track change rather
      * than only once the queue runs dry, so a freshly played suggestion is
@@ -3264,7 +3304,10 @@ class PlaybackService : MediaLibraryService() {
                     val at = activePlayer.currentMediaItemIndex - seedBack
                     if (at >= 0) activePlayer.getMediaItemAt(at).toSong() else current
                 }
-                val result = loadAutoplayTracks(existing, seedSong, remaining)
+                // A party's AutoPlay is the same for all its members, so a
+                // style one member selected does not apply there.
+                val styleId = AutoplayStyles.chosen.value.takeUnless { activeParty.inParty }
+                val result = loadAutoplayTracks(existing, seedSong, remaining, styleId)
                 val resolved = result.getOrElse {
                     TrackLog.w(
                         "BitChord",
@@ -9327,6 +9370,7 @@ class PlaybackService : MediaLibraryService() {
                 .add(boundedContextCommand)
                 .add(clearBoundedContextCommand)
                 .add(autoplayCommand)
+                .add(autoplayStyleCommand)
                 .add(shuffleCommand)
                 .add(startStationCommand)
                 .add(revertToOriginalCommand)
@@ -9366,6 +9410,7 @@ class PlaybackService : MediaLibraryService() {
                 ACTION_START_BOUNDED_CONTEXT -> startBoundedContext(args)
                 ACTION_CLEAR_BOUNDED_CONTEXT -> clearBoundedContext()
                 ACTION_TOGGLE_AUTOPLAY -> toggleAutoplayFromNotification()
+                ACTION_SET_AUTOPLAY_STYLE -> setAutoplayStyle(args.getString(EXTRA_AUTOPLAY_STYLE_ID))
                 ACTION_TOGGLE_SHUFFLE -> toggleShuffleFromSession()
                 ACTION_START_STATION -> startStationFromSession()
                 ACTION_REVERT_TO_ORIGINAL -> revertCurrentToOriginal()

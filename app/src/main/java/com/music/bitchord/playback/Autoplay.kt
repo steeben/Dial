@@ -113,11 +113,17 @@ suspend fun youtubeSeedFor(song: Song): String? {
  * Loads, de-duplicates and resolves one AutoPlay batch. The playback service is
  * the only caller for the AutoPlay toggle; the player UI's explicit radio start
  * uses this same helper for its initial station batch.
+ *
+ * [styleId] is the AutoPlay style the listener selected in the queue (see
+ * [AutoplayStyles]); null is the default selection. A seed that does not
+ * offer the style, and a style that has no new songs, both play on with the
+ * default selection, so AutoPlay does not stop.
  */
 suspend fun loadAutoplayTracks(
     existing: List<Song>,
     seedSong: Song,
     limit: Int = MAX_QUEUED_AUTOPLAY,
+    styleId: String? = null,
 ): Result<List<Song>> {
     // A podcast episode plays on with episodes: its show's next one, or else
     // recommended shows' episodes. Never a station of songs.
@@ -136,17 +142,40 @@ suspend fun loadAutoplayTracks(
     val seed = youtubeSeedFor(seedSong) ?: return Result.success(emptyList())
     // A music video plays on with music videos, as YouTube Music does.
     val videos = seedSong.isVideo && seed == seedSong.videoId
-    // Spotify's station for the song when the listener chose its algorithm,
-    // and YouTube Music's radio whenever that has nothing new to add. A music
-    // video stays with YouTube: Spotify has no videos to play on with.
-    val fromSpotify = if (!videos && SpotifyRecommendations.active()) {
-        QueueBuilder.extend(existing, SpotifyRecommendations.songsFor(seedSong.title, seedSong.artist), limit)
+    // A selected style is one of YouTube Music's own selections for the
+    // seed. The seed's radio names the styles it offers, so it is read first.
+    val station = if (styleId != null) {
+        YtMusicRepository.radioStation(seed, preferVideo = videos).getOrElse { return Result.failure(it) }
+            .also { AutoplayStyles.remember(seedSong.videoId, it.styles) }
+    } else {
+        null
+    }
+    val style = station?.let { styleToLoad(styleId, it.styles) }
+    val inStyle = if (style != null) {
+        val related = YtMusicRepository.radioInStyle(seed, style, preferVideo = videos)
+            .getOrElse { return Result.failure(it) }
+        QueueBuilder.extend(existing, related, limit, preferVideos = videos)
     } else {
         emptyList()
     }
-    val extra = fromSpotify.ifEmpty {
-        val related = YtMusicRepository.radio(seed, preferVideo = videos).getOrElse { return Result.failure(it) }
-        QueueBuilder.extend(existing, related, limit, preferVideos = videos)
+    val extra = inStyle.ifEmpty {
+        // Spotify's station for the song when the listener chose its algorithm,
+        // and YouTube Music's radio whenever that has nothing new to add. A music
+        // video stays with YouTube: Spotify has no videos to play on with. So
+        // does a selected style: it is YouTube Music's.
+        val fromSpotify = if (style == null && !videos && SpotifyRecommendations.active()) {
+            QueueBuilder.extend(existing, SpotifyRecommendations.songsFor(seedSong.title, seedSong.artist), limit)
+        } else {
+            emptyList()
+        }
+        fromSpotify.ifEmpty {
+            val related = station?.songs
+                ?: YtMusicRepository.radioStation(seed, preferVideo = videos)
+                    .getOrElse { return Result.failure(it) }
+                    .also { AutoplayStyles.remember(seedSong.videoId, it.styles) }
+                    .songs
+            QueueBuilder.extend(existing, related, limit, preferVideos = videos)
+        }
     }
     if (extra.isEmpty()) return Result.success(emptyList())
 
