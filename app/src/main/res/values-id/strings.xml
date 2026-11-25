@@ -879,6 +879,8 @@
     <string name="player_theme_simple">Sederhana</string>
 
     <string name="player_blur_style_subtitle">Gaya efek buram di bawah sampul album</string>
+    <string name="player_layout">Tata letak pemutar</string>
+    <string name="player_layout_subtitle">Susunan layar pemutar</string>
 
     <string name="liquid_glass">Kaca Cair</string>
 

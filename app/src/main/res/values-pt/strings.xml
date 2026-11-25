@@ -905,6 +905,8 @@
     <string name="player_theme_simple">Simples</string>
 
     <string name="player_blur_style_subtitle">O estilo do desfoque abaixo da capa do álbum</string>
+    <string name="player_layout">Layout do player</string>
+    <string name="player_layout_subtitle">A disposição da tela do player</string>
 
     <string name="liquid_glass">Vidro Líquido</string>
 

@@ -12,6 +12,7 @@ import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.model.isEpisode
 import com.music.bitchord.data.settings.AudioQuality
 import com.music.bitchord.data.settings.LastPlayerScreen
+import com.music.bitchord.data.settings.PlayerLayout
 import com.music.bitchord.data.settings.PlayerTheme
 import com.music.bitchord.data.settings.SmartAnalysis
 import com.music.bitchord.data.settings.MixBlend
@@ -246,6 +247,8 @@ interface PlayerSettingsSource {
     val lastPlayerScreen: StateFlow<LastPlayerScreen>
     /** What the main player stands on below the artwork — see [PlayerTheme]. */
     val playerTheme: StateFlow<PlayerTheme>
+    /** How the full player is laid out — see [PlayerLayout]. */
+    val playerLayout: StateFlow<PlayerLayout> get() = DefaultPlayerLayout
     val lyricsBlur: StateFlow<Boolean>
     val lyricsOffsetMs: StateFlow<Int>
     val lyricsSourceOrder: StateFlow<List<LyricsSource>>
@@ -493,6 +496,7 @@ private val NoOutputIcons: StateFlow<Map<String, String>> = kotlinx.coroutines.f
 private val DefaultAnimatedArt: StateFlow<com.music.bitchord.data.canvas.AnimatedArtPrefs> =
     kotlinx.coroutines.flow.MutableStateFlow(com.music.bitchord.data.canvas.AnimatedArtPrefs())
 
+private val DefaultPlayerLayout: StateFlow<PlayerLayout> = kotlinx.coroutines.flow.MutableStateFlow(PlayerLayout.APPLE_MUSIC)
 private val WavyProgressBarDefault: StateFlow<Boolean> = kotlinx.coroutines.flow.MutableStateFlow(false)
 private val GlowProgressBarDefault: StateFlow<Boolean> = kotlinx.coroutines.flow.MutableStateFlow(true)
 private val NoPreferredLyricsSource: StateFlow<LyricsSource?> = kotlinx.coroutines.flow.MutableStateFlow(null)

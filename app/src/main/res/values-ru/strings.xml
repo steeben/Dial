@@ -928,6 +928,8 @@
     <string name="player_theme_simple">Простая</string>
 
     <string name="player_blur_style_subtitle">Стиль размытия под обложкой альбома</string>
+    <string name="player_layout">Макет плеера</string>
+    <string name="player_layout_subtitle">Расположение элементов на экране плеера</string>
 
     <string name="liquid_glass">Жидкое стекло</string>
 

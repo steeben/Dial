@@ -751,6 +751,13 @@ object AppSettings {
      */
     val playerTheme = MutableStateFlow(PlayerTheme.DEFAULT)
 
+    /**
+     * How the full player is laid out — see [PlayerLayout].
+     * [PlayerLayout.APPLE_MUSIC] by default: it is the layout the player
+     * always had, so nothing changes until the listener selects the other.
+     */
+    val playerLayout = MutableStateFlow(PlayerLayout.APPLE_MUSIC)
+
     /** Restores the expanded player to the surface the listener left open. */
     val lastPlayerScreen = MutableStateFlow(LastPlayerScreen.MAIN)
 
@@ -1271,6 +1278,9 @@ object AppSettings {
         }.getOrElse {
             if (prefs.getBoolean(KEY_LEGACY_MESH_GRADIENT, false)) PlayerTheme.LEGACY else PlayerTheme.DEFAULT
         }
+        playerLayout.value = runCatching {
+            PlayerLayout.valueOf(prefs.getString(KEY_PLAYER_LAYOUT, null).orEmpty())
+        }.getOrDefault(PlayerLayout.APPLE_MUSIC)
         lastPlayerScreen.value = runCatching {
             LastPlayerScreen.valueOf(
                 prefs.getString(KEY_LAST_PLAYER_SCREEN, null) ?: LastPlayerScreen.MAIN.name,
@@ -2035,6 +2045,11 @@ object AppSettings {
         prefs.edit().putString(KEY_PLAYER_THEME, value.name).apply()
     }
 
+    fun setPlayerLayout(value: PlayerLayout) {
+        playerLayout.value = value
+        prefs.edit().putString(KEY_PLAYER_LAYOUT, value.name).apply()
+    }
+
     fun setLastPlayerScreen(value: LastPlayerScreen) {
         if (lastPlayerScreen.value == value) return
         lastPlayerScreen.value = value
@@ -2677,6 +2692,7 @@ object AppSettings {
     private const val KEY_SPOTIFY_PLAYED_KEEP = "spotify_played_keep"
     private const val KEY_FULL_BLEED_ARTWORK = "full_bleed_artwork"
     private const val KEY_PLAYER_THEME = "player_theme"
+    private const val KEY_PLAYER_LAYOUT = "player_layout"
     private const val KEY_LEGACY_MESH_GRADIENT = "legacy_mesh_gradient"
     private const val KEY_LAST_PLAYER_SCREEN = "last_player_screen"
     private const val KEY_SYNCED_LYRICS = "synced_lyrics"

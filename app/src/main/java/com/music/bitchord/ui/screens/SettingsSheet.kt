@@ -79,6 +79,7 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.Gradient
+import androidx.compose.material.icons.rounded.ViewDay
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.InvertColors
 import androidx.compose.material.icons.rounded.Groups
@@ -199,6 +200,7 @@ import com.music.bitchord.data.NerdStats
 import com.music.bitchord.data.scrobbling.LastFM
 import com.music.bitchord.data.listentogether.ListenTogether
 import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.data.settings.PlayerLayout
 import com.music.bitchord.data.settings.PlayerTheme
 import com.music.bitchord.data.settings.CustomizationSettings
 import com.music.bitchord.data.settings.SpeedDialSource
@@ -328,6 +330,7 @@ fun SettingsScreen(
     val bluetoothVideoDelayMs by AppSettings.bluetoothVideoDelayMs.collectAsStateWithLifecycle()
     val fullBleedArtwork by AppSettings.fullBleedArtwork.collectAsStateWithLifecycle()
     val playerTheme by AppSettings.playerTheme.collectAsStateWithLifecycle()
+    val playerLayout by AppSettings.playerLayout.collectAsStateWithLifecycle()
     val syncedLyrics by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricsInNotification by AppSettings.lyricsInNotification.collectAsStateWithLifecycle()
     val lyricsSources by AppSettings.lyricsSources.collectAsStateWithLifecycle()
@@ -1251,6 +1254,30 @@ fun SettingsScreen(
                         onClick = { AppSettings.setFullBleedArtwork(!fullBleedArtwork) },
                     )
                 }
+            }
+            val playerLayoutTitle = stringResource(R.string.player_layout)
+            row(
+                playerLayoutTitle, "player", "layout", "theme", "apple music", "yt music", "youtube music",
+                "queue", "chips",
+            ) {
+                SettingsRow(
+                    icon = Icons.Rounded.ViewDay,
+                    title = playerLayoutTitle,
+                    subtitle = stringResource(R.string.player_layout_subtitle),
+                )
+                SegmentedControl(
+                    options = PlayerLayout.entries.map {
+                        stringResource(
+                            when (it) {
+                                PlayerLayout.APPLE_MUSIC -> R.string.player_layout_apple_music
+                                PlayerLayout.YT_MUSIC -> R.string.player_layout_yt_music
+                            },
+                        )
+                    },
+                    selectedIndex = PlayerLayout.entries.indexOf(playerLayout),
+                    onSelect = { AppSettings.setPlayerLayout(PlayerLayout.entries[it]) },
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                )
             }
             val playerBlurStyleTitle = stringResource(R.string.player_blur_style)
             row(playerBlurStyleTitle, "background", "player", "mesh", "gradient", "legacy", "simple", "blur", "theme") {

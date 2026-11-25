@@ -900,6 +900,8 @@
     <string name="player_theme_simple">Einfach</string>
 
     <string name="player_blur_style_subtitle">Der Stil der Unschärfe unter dem Albumcover</string>
+    <string name="player_layout">Player-Layout</string>
+    <string name="player_layout_subtitle">Die Anordnung des Player-Bildschirms</string>
 
     <string name="liquid_glass">Flüssiges Glas</string>
 

@@ -39,6 +39,25 @@ enum class PlayerTheme {
     SIMPLE,
 }
 
+/**
+ * How the full player is laid out in an upright window. A landscape window
+ * has one layout of its own, which does not change with this.
+ */
+enum class PlayerLayout {
+    /**
+     * The layout the player always had, after Apple Music: the cover, the
+     * controls, and one row of buttons that opens the lyrics and the queue
+     * in the place of the cover.
+     */
+    APPLE_MUSIC,
+
+    /**
+     * After YouTube Music: a row of option chips under the title, and the
+     * queue in a sheet at the foot of the screen that opens in two steps.
+     */
+    YT_MUSIC,
+}
+
 /** The surface that was last open inside the expanded player. */
 enum class LastPlayerScreen {
     MAIN,

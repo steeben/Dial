@@ -929,6 +929,8 @@
     <string name="player_theme_simple">Semplice</string>
 
     <string name="player_blur_style_subtitle">Lo stile della sfocatura sotto la copertina dell\'album</string>
+    <string name="player_layout">Layout del player</string>
+    <string name="player_layout_subtitle">La disposizione della schermata del player</string>
 
     <string name="lyrics_debug_logs">Log di debug dei testi</string>
 

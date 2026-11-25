@@ -1004,6 +1004,8 @@
     <string name="player_theme_simple">เรียบง่าย</string>
 
     <string name="player_blur_style_subtitle">รูปแบบการเบลอใต้ภาพปกอัลบั้ม</string>
+    <string name="player_layout">เค้าโครงโปรแกรมเล่น</string>
+    <string name="player_layout_subtitle">การจัดวางหน้าจอโปรแกรมเล่น</string>
 
     <string name="add_addon">Add an addon</string>
 

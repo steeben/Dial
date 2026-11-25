@@ -899,6 +899,8 @@
     <string name="player_theme_simple">Simple</string>
 
     <string name="player_blur_style_subtitle">El estilo del desenfoque debajo de la portada del álbum</string>
+    <string name="player_layout">Diseño del reproductor</string>
+    <string name="player_layout_subtitle">La disposición de la pantalla del reproductor</string>
 
     <string name="lyrics_debug_logs">Registros de depuración de letras</string>
 

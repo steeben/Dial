@@ -911,6 +911,8 @@
     <string name="player_theme_simple">Sade</string>
 
     <string name="player_blur_style_subtitle">Albüm kapağının altındaki bulanıklığın stili</string>
+    <string name="player_layout">Oynatıcı düzeni</string>
+    <string name="player_layout_subtitle">Oynatıcı ekranının düzeni</string>
 
     <string name="lyrics_debug_logs">Şarkı sözü hata ayıklama günlükleri</string>
 

@@ -900,6 +900,8 @@
     <string name="player_theme_simple">सरल</string>
 
     <string name="player_blur_style_subtitle">एल्बम आर्ट के नीचे ब्लर की स्टाइल</string>
+    <string name="player_layout">प्लेयर लेआउट</string>
+    <string name="player_layout_subtitle">प्लेयर स्क्रीन की व्यवस्था</string>
 
     <string name="liquid_glass">लिक्विड ग्लास</string>
 

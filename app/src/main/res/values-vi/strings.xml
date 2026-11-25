@@ -274,6 +274,8 @@
     <string name="player_theme_legacy">Cổ điển</string>
     <string name="player_theme_simple">Đơn giản</string>
     <string name="player_blur_style_subtitle">Kiểu làm mờ bên dưới ảnh bìa album</string>
+    <string name="player_layout">Bố cục trình phát</string>
+    <string name="player_layout_subtitle">Cách sắp xếp màn hình trình phát</string>
     <string name="animated_cover_art">Ảnh bìa động</string>
     <string name="synced_lyrics">Lời bài hát đồng bộ</string>
     <string name="synced_lyrics_subtitle">Làm sáng các từ trên trình phát khi đang được hát</string>

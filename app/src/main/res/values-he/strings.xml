@@ -905,6 +905,8 @@
     <string name="player_theme_simple">פשוט</string>
 
     <string name="player_blur_style_subtitle">סגנון הטשטוש מתחת לעטיפת האלבום</string>
+    <string name="player_layout">פריסת הנגן</string>
+    <string name="player_layout_subtitle">סידור מסך הנגן</string>
 
     <string name="liquid_glass">זכוכית נוזלית</string>
 

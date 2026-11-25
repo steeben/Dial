@@ -408,6 +408,10 @@
     <string name="player_theme_legacy">Legacy</string>
     <string name="player_theme_simple">Simple</string>
     <string name="player_blur_style_subtitle">The style of the blur below the album art</string>
+    <string name="player_layout">Player layout</string>
+    <string name="player_layout_subtitle">The arrangement of the player screen</string>
+    <string name="player_layout_apple_music" translatable="false">Apple Music</string>
+    <string name="player_layout_yt_music" translatable="false">YT Music</string>
     <string name="animated_cover_art">Animated cover art</string>
     <string name="synced_lyrics">Synced lyrics</string>
     <string name="synced_lyrics_subtitle">Lights up the words on the player as they’re sung</string>

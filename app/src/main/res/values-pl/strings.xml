@@ -938,6 +938,8 @@
     <string name="player_theme_simple">Prosty</string>
 
     <string name="player_blur_style_subtitle">Styl rozmycia pod okładką albumu</string>
+    <string name="player_layout">Układ odtwarzacza</string>
+    <string name="player_layout_subtitle">Układ ekranu odtwarzacza</string>
 
     <string name="liquid_glass">Płynne szkło</string>
 

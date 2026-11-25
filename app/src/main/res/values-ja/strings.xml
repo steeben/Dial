@@ -995,6 +995,8 @@
     <string name="player_theme_simple">シンプル</string>
 
     <string name="player_blur_style_subtitle">アルバムアートの下に表示するぼかしのスタイル</string>
+    <string name="player_layout">プレーヤーのレイアウト</string>
+    <string name="player_layout_subtitle">プレーヤー画面の配置</string>
 
     <string name="liquid_glass">リキッド グラス</string>
 

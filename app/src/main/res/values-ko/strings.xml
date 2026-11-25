@@ -338,6 +338,8 @@
     <string name="player_theme_legacy">이전</string>
     <string name="player_theme_simple">심플</string>
     <string name="player_blur_style_subtitle">앨범 아트 아래 블러의 스타일</string>
+    <string name="player_layout">플레이어 레이아웃</string>
+    <string name="player_layout_subtitle">플레이어 화면의 배치</string>
     <string name="animated_cover_art">움직이는 커버 아트</string>
     <string name="artist_signatures">아티스트 서명</string>
     <string name="artist_signatures_subtitle">Apple Music에 타이틀 로고가 없으면 자필 서명을 표시합니다</string>

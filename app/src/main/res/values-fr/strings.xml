@@ -901,6 +901,8 @@
     <string name="player_theme_simple">Simple</string>
 
     <string name="player_blur_style_subtitle">Le style du flou sous la pochette de l\'album</string>
+    <string name="player_layout">Disposition du lecteur</string>
+    <string name="player_layout_subtitle">La disposition de l’écran du lecteur</string>
 
     <string name="liquid_glass">Verre liquide</string>
 

@@ -881,6 +881,8 @@
     <string name="player_theme_simple">簡潔</string>
 
     <string name="player_blur_style_subtitle">專輯封面下方模糊效果的樣式</string>
+    <string name="player_layout">播放器版面配置</string>
+    <string name="player_layout_subtitle">播放器畫面的排列方式</string>
 
     <string name="liquid_glass">液態玻璃 (Liquid Glass)</string>
 
