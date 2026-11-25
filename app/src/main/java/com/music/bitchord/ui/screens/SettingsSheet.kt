@@ -1,5 +1,6 @@
 package com.music.bitchord.ui.screens
 
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.PlayCircleOutline
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Shuffle
@@ -1041,217 +1042,11 @@ fun SettingsScreen(
             }
         }
 
-        if (shows(SettingsCategory.APPEARANCE)) SearchableSettingsGroup(search, header = stringResource(R.string.appearance)) {
-            val themeTitle = stringResource(R.string.theme)
-            row(themeTitle, "dark mode", "light mode") {
-                SettingsRow(icon = Icons.Rounded.Brightness4, title = themeTitle)
-                SegmentedControl(
-                    options = ThemeMode.entries.map { it.localizedLabel() },
-                    selectedIndex = ThemeMode.entries.indexOf(theme),
-                    onSelect = { AppSettings.setThemeMode(ThemeMode.entries[it]) },
-                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
-                )
-            }
-            val appIconTitle = stringResource(R.string.app_icon)
-            row(appIconTitle, "icon", "launcher", "logo") {
-                // Read from the package manager rather than a setting, so it is
-                // whatever the launcher is really showing.
-                var selectedIcon by remember { mutableStateOf(AppIcon.current(context)) }
-                SettingsRow(icon = Icons.Rounded.Apps, title = appIconTitle)
-                // Dark icons on the top row, each colour's bright version under
-                // it. Both rows scroll together so the pairs stay lined up.
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    listOf(true, false).forEach { dark ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            AppIconColor.entries.forEach { color ->
-                                val option = AppIcon.of(color, dark)
-                                val selected = option == selectedIcon
-                                Column(
-                                    modifier = Modifier
-                                        .width(72.dp)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .clickable {
-                                            if (option != selectedIcon) {
-                                                selectedIcon = option
-                                                AppIcon.apply(context, option)
-                                            }
-                                        }
-                                        .padding(vertical = 6.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    val tile = Modifier
-                                        .size(60.dp)
-                                        .then(
-                                            if (selected) {
-                                                Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(18.dp))
-                                            } else {
-                                                Modifier
-                                            },
-                                        )
-                                        .padding(4.dp)
-                                    // An ImageView draws the adaptive icon through the
-                                    // device's own mask, the shape the launcher will use.
-                                    AndroidView(
-                                        factory = { ctx -> android.widget.ImageView(ctx) },
-                                        update = { it.setImageResource(option.iconRes) },
-                                        modifier = tile,
-                                    )
-                                    // Colour names once, under the bright row.
-                                    if (!dark) {
-                                        Text(
-                                            text = stringResource(color.labelRes),
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 1,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = if (AppIcon.of(color, true) == selectedIcon || selected) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (AppIcon.of(color, true) == selectedIcon || selected) FontWeight.Bold else FontWeight.Normal,
-                                            modifier = Modifier.padding(top = 6.dp),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            val reduceAnimationTitle = stringResource(R.string.reduce_animation)
-            row(reduceAnimationTitle, "motion") {
-                SettingsRow(
-                    icon = Icons.Rounded.MotionPhotosOff,
-                    title = reduceAnimationTitle,
-                    subtitle = stringResource(R.string.reduce_animation_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = reduceAnimation,
-                            onCheckedChange = AppSettings::setReduceAnimation,
-                        )
-                    },
-                    onClick = { AppSettings.setReduceAnimation(!reduceAnimation) },
-                )
-            }
-            val listenTogetherButtonTitle = stringResource(R.string.show_listen_together_button)
-            row(listenTogetherButtonTitle, "party", "jam", "output", "headphones", "player") {
-                SettingsRow(
-                    icon = Icons.Rounded.Groups,
-                    title = listenTogetherButtonTitle,
-                    subtitle = stringResource(R.string.show_listen_together_button_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = listenTogetherButton,
-                            onCheckedChange = AppSettings::setShowListenTogetherButton,
-                        )
-                    },
-                    onClick = { AppSettings.setShowListenTogetherButton(!listenTogetherButton) },
-                )
-            }
-            // One choice for what the app's bars, menus and cards are made of,
-            // in place of the Liquid Glass and "reduce dynamic blur" switches.
-            val appStyleTitle = stringResource(R.string.app_style)
-            val appStyle = AppStyle.of(liquidGlass && liquidGlassSupported, reduceDynamicBlur)
-            row(appStyleTitle, "glass", "frost", "solid", "blur", "liquid", "performance") {
-                SettingsRow(icon = Icons.Rounded.AutoAwesome, title = appStyleTitle)
-                val styles = AppStyle.choices(liquidGlassSupported)
-                SegmentedControl(
-                    options = styles.map {
-                        stringResource(
-                            when (it) {
-                                AppStyle.GLASS -> R.string.app_style_glass
-                                AppStyle.FROST -> R.string.app_style_frost
-                                AppStyle.SOLID -> R.string.app_style_solid
-                            },
-                        )
-                    },
-                    selectedIndex = styles.indexOf(appStyle),
-                    onSelect = { AppSettings.setAppStyle(styles[it]) },
-                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
-                )
-            }
-            val adjustGlassTitle = stringResource(R.string.adjust_glass_effect)
-            row(adjustGlassTitle, "glass", "liquid", "tint", "transparency", "blur") {
-                SettingsRow(
-                    icon = Icons.Rounded.Tune,
-                    title = adjustGlassTitle,
-                    subtitle = stringResource(R.string.adjust_glass_effect_subtitle),
-                    enabled = appStyle == AppStyle.GLASS,
-                    trailing = { Chevron() },
-                    onClick = onLiquidGlassOptions,
-                )
-            }
-            val animatedNavTitle = stringResource(R.string.animated_nav_bar)
-            row(animatedNavTitle, "navigation", "bar", "minimize", "shrink", "collapse", "scroll", "mini player") {
-                SettingsRow(
-                    icon = Icons.Rounded.UnfoldMore,
-                    title = animatedNavTitle,
-                    subtitle = stringResource(R.string.animated_nav_bar_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = !keepNavBarExpanded,
-                            onCheckedChange = { CustomizationSettings.setKeepNavBarExpanded(!it) },
-                        )
-                    },
-                    onClick = { CustomizationSettings.setKeepNavBarExpanded(!keepNavBarExpanded) },
-                )
-            }
-            val ambientTitle = stringResource(R.string.ambient_background)
-            row(ambientTitle, "background", "colour", "color", "blobs", "gradient") {
-                SettingsRow(
-                    icon = Icons.Rounded.BubbleChart,
-                    title = ambientTitle,
-                    subtitle = stringResource(R.string.ambient_background_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = ambientBackground,
-                            onCheckedChange = CustomizationSettings::setAmbientBackground,
-                        )
-                    },
-                    onClick = { CustomizationSettings.setAmbientBackground(!ambientBackground) },
-                )
-            }
-            if (ambientBackground) {
-                val ambientArtTitle = stringResource(R.string.ambient_follows_artwork)
-                row(ambientArtTitle, "background", "album art", "artwork", "colour", "color") {
-                    SettingsRow(
-                        icon = Icons.Rounded.Palette,
-                        title = ambientArtTitle,
-                        subtitle = stringResource(R.string.ambient_follows_artwork_subtitle),
-                        trailing = {
-                            IosSwitch(
-                                checked = ambientFollowsArtwork,
-                                onCheckedChange = CustomizationSettings::setAmbientFollowsArtwork,
-                            )
-                        },
-                        onClick = { CustomizationSettings.setAmbientFollowsArtwork(!ambientFollowsArtwork) },
-                    )
-                }
-            }
-            // Left out where the player won't honour it: a window too wide for
-            // the player to fill and too narrow to stand a page beside it keeps
-            // the sleeve either way. A docked pane is a phone's width, so it does
-            // honour it — see [fullBleedArtworkAvailable].
-            if (fullBleedArtworkAvailable(windowWidth)) {
-                val fullScreenCoverArtTitle = stringResource(R.string.full_screen_cover_art)
-                row(fullScreenCoverArtTitle, "artwork", "player") {
-                    SettingsRow(
-                        icon = Icons.Rounded.Fullscreen,
-                        title = fullScreenCoverArtTitle,
-                        subtitle = stringResource(R.string.full_screen_cover_art_subtitle),
-                        trailing = {
-                            IosSwitch(
-                                checked = fullBleedArtwork,
-                                onCheckedChange = AppSettings::setFullBleedArtwork,
-                            )
-                        },
-                        onClick = { AppSettings.setFullBleedArtwork(!fullBleedArtwork) },
-                    )
-                }
-            }
+        // The full-screen player, its lyrics and the mini-player, on one page.
+        // These rows were on Appearance, Layout, Miscellaneous and Advanced.
+        // Only the page changed: each row keeps its stored setting.
+        if (shows(SettingsCategory.PLAYER)) SearchableSettingsGroup(search, header = stringResource(R.string.player_settings)) {
+            // The player layout choice goes first in this group.
             val playerBlurStyleTitle = stringResource(R.string.player_blur_style)
             row(playerBlurStyleTitle, "background", "player", "mesh", "gradient", "legacy", "simple", "blur", "theme") {
                 SettingsRow(
@@ -1273,6 +1068,27 @@ fun SettingsScreen(
                     onSelect = { AppSettings.setPlayerTheme(PlayerTheme.entries[it]) },
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
                 )
+            }
+            // Left out where the player won't honour it: a window too wide for
+            // the player to fill and too narrow to stand a page beside it keeps
+            // the sleeve either way. A docked pane is a phone's width, so it does
+            // honour it — see [fullBleedArtworkAvailable].
+            if (fullBleedArtworkAvailable(windowWidth)) {
+                val fullScreenCoverArtTitle = stringResource(R.string.full_screen_cover_art)
+                row(fullScreenCoverArtTitle, "artwork", "player") {
+                    SettingsRow(
+                        icon = Icons.Rounded.Fullscreen,
+                        title = fullScreenCoverArtTitle,
+                        subtitle = stringResource(R.string.full_screen_cover_art_subtitle),
+                        trailing = {
+                            IosSwitch(
+                                checked = fullBleedArtwork,
+                                onCheckedChange = AppSettings::setFullBleedArtwork,
+                            )
+                        },
+                        onClick = { AppSettings.setFullBleedArtwork(!fullBleedArtwork) },
+                    )
+                }
             }
             val progressBarTitle = stringResource(R.string.progress_bar_style)
             row(
@@ -1387,6 +1203,114 @@ fun SettingsScreen(
                     }
                 }
             }
+            val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
+            row(hideVolumeBarTitle, "volume", "player") {
+                SettingsRow(
+                    icon = Icons.Rounded.VolumeOff,
+                    title = hideVolumeBarTitle,
+                    subtitle = stringResource(R.string.hide_volume_bar_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = hideVolumeBar,
+                            onCheckedChange = AppSettings::setHideVolumeBar,
+                        )
+                    },
+                    onClick = { AppSettings.setHideVolumeBar(!hideVolumeBar) },
+                )
+            }
+            val hideSongStatusTitle = stringResource(R.string.hide_song_status)
+            row(hideSongStatusTitle, "player", "playing from", "played by") {
+                SettingsRow(
+                    icon = Icons.Rounded.VisibilityOff,
+                    title = hideSongStatusTitle,
+                    subtitle = stringResource(R.string.hide_song_status_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = hideSongStatus,
+                            onCheckedChange = AppSettings::setHideSongStatus,
+                        )
+                    },
+                    onClick = { AppSettings.setHideSongStatus(!hideSongStatus) },
+                )
+            }
+            val hidePlayerStatusBarTitle = stringResource(R.string.hide_player_status_bar)
+            row(hidePlayerStatusBarTitle, "player", "status bar", "full screen", "immersive", "vignette") {
+                SettingsRow(
+                    icon = Icons.Rounded.Fullscreen,
+                    title = hidePlayerStatusBarTitle,
+                    subtitle = stringResource(R.string.hide_player_status_bar_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = hidePlayerStatusBar,
+                            onCheckedChange = AppSettings::setHidePlayerStatusBar,
+                        )
+                    },
+                    onClick = { AppSettings.setHidePlayerStatusBar(!hidePlayerStatusBar) },
+                )
+            }
+            val showQueueHistoryTitle = stringResource(R.string.show_queue_history)
+            row(showQueueHistoryTitle, "player", "queue", "history", "previously played") {
+                SettingsRow(
+                    icon = Icons.Rounded.History,
+                    title = showQueueHistoryTitle,
+                    subtitle = stringResource(R.string.show_queue_history_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = showQueueHistory,
+                            onCheckedChange = AppSettings::setShowQueueHistory,
+                        )
+                    },
+                    onClick = { AppSettings.setShowQueueHistory(!showQueueHistory) },
+                )
+            }
+            val listenTogetherButtonTitle = stringResource(R.string.show_listen_together_button)
+            row(listenTogetherButtonTitle, "party", "jam", "output", "headphones", "player") {
+                SettingsRow(
+                    icon = Icons.Rounded.Groups,
+                    title = listenTogetherButtonTitle,
+                    subtitle = stringResource(R.string.show_listen_together_button_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = listenTogetherButton,
+                            onCheckedChange = AppSettings::setShowListenTogetherButton,
+                        )
+                    },
+                    onClick = { AppSettings.setShowListenTogetherButton(!listenTogetherButton) },
+                )
+            }
+            val reduceAnimationTitle = stringResource(R.string.reduce_animation)
+            row(reduceAnimationTitle, "motion") {
+                SettingsRow(
+                    icon = Icons.Rounded.MotionPhotosOff,
+                    title = reduceAnimationTitle,
+                    subtitle = stringResource(R.string.reduce_animation_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = reduceAnimation,
+                            onCheckedChange = AppSettings::setReduceAnimation,
+                        )
+                    },
+                    onClick = { AppSettings.setReduceAnimation(!reduceAnimation) },
+                )
+            }
+            val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
+            row(showNerdStatsTitle, "debug", "bitrate", "codec") {
+                SettingsRow(
+                    icon = Icons.Rounded.BarChart,
+                    title = showNerdStatsTitle,
+                    subtitle = stringResource(R.string.show_nerd_stats_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = nerdStats,
+                            onCheckedChange = AppSettings::setShowNerdStats,
+                        )
+                    },
+                    onClick = { AppSettings.setShowNerdStats(!nerdStats) },
+                )
+            }
+        }
+
+        if (shows(SettingsCategory.PLAYER)) SearchableSettingsGroup(search, header = stringResource(R.string.lyrics_settings)) {
             val syncedLyricsTitle = stringResource(R.string.synced_lyrics)
             // Only the current-line strip on the player: lyrics still load
             // and open from the lyrics button with this off.
@@ -1471,7 +1395,7 @@ fun SettingsScreen(
             }
         }
 
-        if (shows(SettingsCategory.LAYOUT)) SearchableSettingsGroup(search, header = stringResource(R.string.layout_settings)) {
+        if (shows(SettingsCategory.PLAYER)) SearchableSettingsGroup(search, header = stringResource(R.string.mini_player_settings)) {
             val miniShapeTitle = stringResource(R.string.mini_player_shape)
             row(miniShapeTitle, "mini player", "rounded", "square", "pill") {
                 SettingsRow(icon = Icons.Rounded.CropSquare, title = miniShapeTitle)
@@ -1485,6 +1409,189 @@ fun SettingsScreen(
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
                 )
             }
+            val miniNextTitle = stringResource(R.string.mini_player_next_button)
+            row(miniNextTitle, "mini player", "skip", "next", "button") {
+                SettingsRow(
+                    // The glyph the mini player itself shows.
+                    iconPainter = org.jetbrains.compose.resources.painterResource(
+                        com.music.bitchord.sharedui.resources.Res.drawable.ic_player_next,
+                    ),
+                    title = miniNextTitle,
+                    subtitle = stringResource(R.string.mini_player_next_button_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = miniPlayerNextButton,
+                            onCheckedChange = CustomizationSettings::setMiniPlayerNextButton,
+                        )
+                    },
+                    onClick = { CustomizationSettings.setMiniPlayerNextButton(!miniPlayerNextButton) },
+                )
+            }
+        }
+
+        if (shows(SettingsCategory.APPEARANCE)) SearchableSettingsGroup(search, header = stringResource(R.string.appearance)) {
+            val themeTitle = stringResource(R.string.theme)
+            row(themeTitle, "dark mode", "light mode") {
+                SettingsRow(icon = Icons.Rounded.Brightness4, title = themeTitle)
+                SegmentedControl(
+                    options = ThemeMode.entries.map { it.localizedLabel() },
+                    selectedIndex = ThemeMode.entries.indexOf(theme),
+                    onSelect = { AppSettings.setThemeMode(ThemeMode.entries[it]) },
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                )
+            }
+            val appIconTitle = stringResource(R.string.app_icon)
+            row(appIconTitle, "icon", "launcher", "logo") {
+                // Read from the package manager rather than a setting, so it is
+                // whatever the launcher is really showing.
+                var selectedIcon by remember { mutableStateOf(AppIcon.current(context)) }
+                SettingsRow(icon = Icons.Rounded.Apps, title = appIconTitle)
+                // Dark icons on the top row, each colour's bright version under
+                // it. Both rows scroll together so the pairs stay lined up.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    listOf(true, false).forEach { dark ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AppIconColor.entries.forEach { color ->
+                                val option = AppIcon.of(color, dark)
+                                val selected = option == selectedIcon
+                                Column(
+                                    modifier = Modifier
+                                        .width(72.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .clickable {
+                                            if (option != selectedIcon) {
+                                                selectedIcon = option
+                                                AppIcon.apply(context, option)
+                                            }
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    val tile = Modifier
+                                        .size(60.dp)
+                                        .then(
+                                            if (selected) {
+                                                Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(18.dp))
+                                            } else {
+                                                Modifier
+                                            },
+                                        )
+                                        .padding(4.dp)
+                                    // An ImageView draws the adaptive icon through the
+                                    // device's own mask, the shape the launcher will use.
+                                    AndroidView(
+                                        factory = { ctx -> android.widget.ImageView(ctx) },
+                                        update = { it.setImageResource(option.iconRes) },
+                                        modifier = tile,
+                                    )
+                                    // Colour names once, under the bright row.
+                                    if (!dark) {
+                                        Text(
+                                            text = stringResource(color.labelRes),
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = if (AppIcon.of(color, true) == selectedIcon || selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = if (AppIcon.of(color, true) == selectedIcon || selected) FontWeight.Bold else FontWeight.Normal,
+                                            modifier = Modifier.padding(top = 6.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // One choice for what the app's bars, menus and cards are made of,
+            // in place of the Liquid Glass and "reduce dynamic blur" switches.
+            val appStyleTitle = stringResource(R.string.app_style)
+            val appStyle = AppStyle.of(liquidGlass && liquidGlassSupported, reduceDynamicBlur)
+            row(appStyleTitle, "glass", "frost", "solid", "blur", "liquid", "performance") {
+                SettingsRow(icon = Icons.Rounded.AutoAwesome, title = appStyleTitle)
+                val styles = AppStyle.choices(liquidGlassSupported)
+                SegmentedControl(
+                    options = styles.map {
+                        stringResource(
+                            when (it) {
+                                AppStyle.GLASS -> R.string.app_style_glass
+                                AppStyle.FROST -> R.string.app_style_frost
+                                AppStyle.SOLID -> R.string.app_style_solid
+                            },
+                        )
+                    },
+                    selectedIndex = styles.indexOf(appStyle),
+                    onSelect = { AppSettings.setAppStyle(styles[it]) },
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                )
+            }
+            val adjustGlassTitle = stringResource(R.string.adjust_glass_effect)
+            row(adjustGlassTitle, "glass", "liquid", "tint", "transparency", "blur") {
+                SettingsRow(
+                    icon = Icons.Rounded.Tune,
+                    title = adjustGlassTitle,
+                    subtitle = stringResource(R.string.adjust_glass_effect_subtitle),
+                    enabled = appStyle == AppStyle.GLASS,
+                    trailing = { Chevron() },
+                    onClick = onLiquidGlassOptions,
+                )
+            }
+            val animatedNavTitle = stringResource(R.string.animated_nav_bar)
+            row(animatedNavTitle, "navigation", "bar", "minimize", "shrink", "collapse", "scroll", "mini player") {
+                SettingsRow(
+                    icon = Icons.Rounded.UnfoldMore,
+                    title = animatedNavTitle,
+                    subtitle = stringResource(R.string.animated_nav_bar_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = !keepNavBarExpanded,
+                            onCheckedChange = { CustomizationSettings.setKeepNavBarExpanded(!it) },
+                        )
+                    },
+                    onClick = { CustomizationSettings.setKeepNavBarExpanded(!keepNavBarExpanded) },
+                )
+            }
+            val ambientTitle = stringResource(R.string.ambient_background)
+            row(ambientTitle, "background", "colour", "color", "blobs", "gradient") {
+                SettingsRow(
+                    icon = Icons.Rounded.BubbleChart,
+                    title = ambientTitle,
+                    subtitle = stringResource(R.string.ambient_background_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = ambientBackground,
+                            onCheckedChange = CustomizationSettings::setAmbientBackground,
+                        )
+                    },
+                    onClick = { CustomizationSettings.setAmbientBackground(!ambientBackground) },
+                )
+            }
+            if (ambientBackground) {
+                val ambientArtTitle = stringResource(R.string.ambient_follows_artwork)
+                row(ambientArtTitle, "background", "album art", "artwork", "colour", "color") {
+                    SettingsRow(
+                        icon = Icons.Rounded.Palette,
+                        title = ambientArtTitle,
+                        subtitle = stringResource(R.string.ambient_follows_artwork_subtitle),
+                        trailing = {
+                            IosSwitch(
+                                checked = ambientFollowsArtwork,
+                                onCheckedChange = CustomizationSettings::setAmbientFollowsArtwork,
+                            )
+                        },
+                        onClick = { CustomizationSettings.setAmbientFollowsArtwork(!ambientFollowsArtwork) },
+                    )
+                }
+            }
+        }
+
+        if (shows(SettingsCategory.LAYOUT)) SearchableSettingsGroup(search, header = stringResource(R.string.layout_settings)) {
             val speedDialSourceTitle = stringResource(R.string.speed_dial_source)
             val spotifyDialSeedsTitle = stringResource(R.string.spotify_dial_seeds)
             row(
@@ -1585,24 +1692,6 @@ fun SettingsScreen(
                         canDisable = { list, _ -> list.count { it.enabled } > 1 },
                     )
                 }
-            }
-            val miniNextTitle = stringResource(R.string.mini_player_next_button)
-            row(miniNextTitle, "mini player", "skip", "next", "button") {
-                SettingsRow(
-                    // The glyph the mini player itself shows.
-                    iconPainter = org.jetbrains.compose.resources.painterResource(
-                        com.music.bitchord.sharedui.resources.Res.drawable.ic_player_next,
-                    ),
-                    title = miniNextTitle,
-                    subtitle = stringResource(R.string.mini_player_next_button_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = miniPlayerNextButton,
-                            onCheckedChange = CustomizationSettings::setMiniPlayerNextButton,
-                        )
-                    },
-                    onClick = { CustomizationSettings.setMiniPlayerNextButton(!miniPlayerNextButton) },
-                )
             }
             val cropThumbnailsTitle = stringResource(R.string.crop_thumbnails)
             row(cropThumbnailsTitle, "artwork", "thumbnail", "letterbox", "bars", "fill", "crop") {
@@ -2112,66 +2201,6 @@ fun SettingsScreen(
                     onClick = { AppSettings.setStopOnTaskRemoved(!stopOnTaskRemoved) },
                 )
             }
-            val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
-            row(hideVolumeBarTitle, "volume", "player") {
-                SettingsRow(
-                    icon = Icons.Rounded.VolumeOff,
-                    title = hideVolumeBarTitle,
-                    subtitle = stringResource(R.string.hide_volume_bar_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = hideVolumeBar,
-                            onCheckedChange = AppSettings::setHideVolumeBar,
-                        )
-                    },
-                    onClick = { AppSettings.setHideVolumeBar(!hideVolumeBar) },
-                )
-            }
-            val hideSongStatusTitle = stringResource(R.string.hide_song_status)
-            row(hideSongStatusTitle, "player", "playing from", "played by") {
-                SettingsRow(
-                    icon = Icons.Rounded.VisibilityOff,
-                    title = hideSongStatusTitle,
-                    subtitle = stringResource(R.string.hide_song_status_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = hideSongStatus,
-                            onCheckedChange = AppSettings::setHideSongStatus,
-                        )
-                    },
-                    onClick = { AppSettings.setHideSongStatus(!hideSongStatus) },
-                )
-            }
-            val hidePlayerStatusBarTitle = stringResource(R.string.hide_player_status_bar)
-            row(hidePlayerStatusBarTitle, "player", "status bar", "full screen", "immersive", "vignette") {
-                SettingsRow(
-                    icon = Icons.Rounded.Fullscreen,
-                    title = hidePlayerStatusBarTitle,
-                    subtitle = stringResource(R.string.hide_player_status_bar_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = hidePlayerStatusBar,
-                            onCheckedChange = AppSettings::setHidePlayerStatusBar,
-                        )
-                    },
-                    onClick = { AppSettings.setHidePlayerStatusBar(!hidePlayerStatusBar) },
-                )
-            }
-            val showQueueHistoryTitle = stringResource(R.string.show_queue_history)
-            row(showQueueHistoryTitle, "player", "queue", "history", "previously played") {
-                SettingsRow(
-                    icon = Icons.Rounded.History,
-                    title = showQueueHistoryTitle,
-                    subtitle = stringResource(R.string.show_queue_history_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = showQueueHistory,
-                            onCheckedChange = AppSettings::setShowQueueHistory,
-                        )
-                    },
-                    onClick = { AppSettings.setShowQueueHistory(!showQueueHistory) },
-                )
-            }
         }
 
         if (shows(SettingsCategory.LANGUAGE)) SearchableSettingsGroup(search, header = stringResource(R.string.language_and_location)) {
@@ -2222,21 +2251,6 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setSmartVersionAlignment(!smartVersionAlignment) },
-                )
-            }
-            val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
-            row(showNerdStatsTitle, "debug", "bitrate", "codec") {
-                SettingsRow(
-                    icon = Icons.Rounded.BarChart,
-                    title = showNerdStatsTitle,
-                    subtitle = stringResource(R.string.show_nerd_stats_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = nerdStats,
-                            onCheckedChange = AppSettings::setShowNerdStats,
-                        )
-                    },
-                    onClick = { AppSettings.setShowNerdStats(!nerdStats) },
                 )
             }
             val enableLoggingTitle = stringResource(R.string.enable_logging)
@@ -3600,6 +3614,7 @@ private fun DownloadQualitySheet(
 enum class SettingsCategory(@param:StringRes val title: Int) {
     DOWNLOADS(R.string.downloads),
     PLAYBACK(R.string.playback),
+    PLAYER(R.string.player_settings),
     APPEARANCE(R.string.appearance),
     LAYOUT(R.string.layout_settings),
     PERFORMANCE(R.string.performance),
@@ -3615,6 +3630,7 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
         get() = when (this) {
             DOWNLOADS -> Icons.Rounded.Download
             PLAYBACK -> Icons.Rounded.PlayCircleOutline
+            PLAYER -> Icons.Rounded.Album
             APPEARANCE -> Icons.Rounded.Palette
             LAYOUT -> Icons.Rounded.Dashboard
             PERFORMANCE -> Icons.Rounded.Speed

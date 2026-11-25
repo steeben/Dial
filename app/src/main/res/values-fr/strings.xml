@@ -197,6 +197,9 @@
     <string name="switch_to_list_view">Passer à l\'affichage en liste</string>
     <string name="audio_quality">Qualité audio</string>
     <string name="playback">Lecture</string>
+    <string name="player_settings">Lecteur</string>
+    <string name="lyrics_settings">Paroles</string>
+    <string name="mini_player_settings">Mini-lecteur</string>
     <string name="appearance">Apparence</string>
     <string name="storage">Stockage</string>
     <string name="your_data">Vos données</string>

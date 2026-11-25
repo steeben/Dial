@@ -209,6 +209,9 @@
     <string name="switch_to_list_view">Liste görünümüne geç</string>
     <string name="audio_quality">Ses kalitesi</string>
     <string name="playback">Oynatma</string>
+    <string name="player_settings">Oynatıcı</string>
+    <string name="lyrics_settings">Şarkı sözleri</string>
+    <string name="mini_player_settings">Mini oynatıcı</string>
     <string name="appearance">Görünüm</string>
     <string name="storage">Depolama</string>
     <string name="your_data">Verileriniz</string>

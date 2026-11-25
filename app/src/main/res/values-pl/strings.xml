@@ -194,6 +194,9 @@
     <string name="show_all">Pokaż wszystkie</string>
     <string name="audio_quality">Jakość audio</string>
     <string name="playback">Odtwarzanie</string>
+    <string name="player_settings">Odtwarzacz</string>
+    <string name="lyrics_settings">Teksty</string>
+    <string name="mini_player_settings">Miniodtwarzacz</string>
     <string name="appearance">Wygląd</string>
     <string name="storage">Pamięć masowa</string>
     <string name="your_data">Twoje dane</string>

@@ -196,6 +196,9 @@
     <string name="switch_to_list_view">Zur Listenansicht wechseln</string>
     <string name="audio_quality">Audioqualität</string>
     <string name="playback">Wiedergabe</string>
+    <string name="player_settings">Player</string>
+    <string name="lyrics_settings">Songtexte</string>
+    <string name="mini_player_settings">Mini-Player</string>
     <string name="appearance">Erscheinungsbild</string>
     <string name="storage">Speicher</string>
     <string name="your_data">Deine Daten</string>

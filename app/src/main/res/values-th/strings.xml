@@ -203,6 +203,9 @@
     <string name="switch_to_list_view">สลับเป็นมุมมองรายการ</string>
     <string name="audio_quality">คุณภาพเสียง</string>
     <string name="playback">การเล่น</string>
+    <string name="player_settings">เครื่องเล่น</string>
+    <string name="lyrics_settings">เนื้อเพลง</string>
+    <string name="mini_player_settings">เครื่องเล่นขนาดเล็ก</string>
     <string name="appearance">ลักษณะที่ปรากฏ</string>
     <string name="storage">พื้นที่จัดเก็บ</string>
     <string name="your_data">ข้อมูลของคุณ</string>

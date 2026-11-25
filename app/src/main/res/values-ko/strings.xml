@@ -252,6 +252,9 @@
     <string name="switch_to_list_view">목록 보기로 전환</string>
     <string name="audio_quality">오디오 품질</string>
     <string name="playback">재생</string>
+    <string name="player_settings">플레이어</string>
+    <string name="lyrics_settings">가사</string>
+    <string name="mini_player_settings">미니 플레이어</string>
     <string name="appearance">모양</string>
     <string name="storage">저장공간</string>
     <string name="your_data">내 데이터</string>

@@ -193,6 +193,9 @@
     <string name="switch_to_list_view">切换到列表视图</string>
     <string name="audio_quality">音频质量</string>
     <string name="playback">播放</string>
+    <string name="player_settings">播放器</string>
+    <string name="lyrics_settings">歌词</string>
+    <string name="mini_player_settings">迷你播放器</string>
     <string name="appearance">外观</string>
     <string name="storage">存储空间</string>
     <string name="your_data">你的数据</string>

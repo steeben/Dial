@@ -301,6 +301,9 @@
     <string name="switch_to_list_view">Switch to list view</string>
     <string name="audio_quality">Audio quality</string>
     <string name="playback">Playback</string>
+    <string name="player_settings">Player</string>
+    <string name="lyrics_settings">Lyrics</string>
+    <string name="mini_player_settings">Mini-player</string>
     <string name="appearance">Appearance</string>
     <string name="storage">Storage</string>
     <string name="your_data">Your data</string>

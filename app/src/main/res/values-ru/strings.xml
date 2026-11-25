@@ -206,6 +206,9 @@
     <string name="switch_to_list_view">Переключить на список</string>
     <string name="audio_quality">Качество звука</string>
     <string name="playback">Воспроизведение</string>
+    <string name="player_settings">Плеер</string>
+    <string name="lyrics_settings">Тексты песен</string>
+    <string name="mini_player_settings">Мини-плеер</string>
     <string name="appearance">Внешний вид</string>
     <string name="storage">Хранилище</string>
     <string name="your_data">Ваши данные</string>

@@ -196,6 +196,9 @@
     <string name="switch_to_list_view">लिस्ट व्यू पर स्विच करें</string>
     <string name="audio_quality">ऑडियो क्वालिटी</string>
     <string name="playback">प्लेबैक</string>
+    <string name="player_settings">प्लेयर</string>
+    <string name="lyrics_settings">गीत के बोल</string>
+    <string name="mini_player_settings">मिनी-प्लेयर</string>
     <string name="appearance">दिखावट</string>
     <string name="storage">स्टोरेज</string>
     <string name="your_data">आपका डेटा</string>

@@ -191,6 +191,9 @@
     <string name="switch_to_list_view">リスト表示に切り替え</string>
     <string name="audio_quality">音質</string>
     <string name="playback">再生</string>
+    <string name="player_settings">プレーヤー</string>
+    <string name="lyrics_settings">歌詞</string>
+    <string name="mini_player_settings">ミニプレーヤー</string>
     <string name="appearance">外観</string>
     <string name="storage">ストレージ</string>
     <string name="your_data">あなたのデータ</string>

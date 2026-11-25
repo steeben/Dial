@@ -197,6 +197,9 @@
     <string name="switch_to_list_view">מעבר לתצוגת רשימה</string>
     <string name="audio_quality">איכות אודיו</string>
     <string name="playback">השמעה</string>
+    <string name="player_settings">נגן</string>
+    <string name="lyrics_settings">מילים</string>
+    <string name="mini_player_settings">נגן מוקטן</string>
     <string name="appearance">מראה</string>
     <string name="storage">אחסון</string>
     <string name="your_data">הנתונים שלך</string>

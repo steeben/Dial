@@ -227,6 +227,9 @@
     <string name="switch_to_list_view">Passa alla vista a elenco</string>
     <string name="audio_quality">Qualità audio</string>
     <string name="playback">Riproduzione</string>
+    <string name="player_settings">Lettore</string>
+    <string name="lyrics_settings">Testi</string>
+    <string name="mini_player_settings">Mini-lettore</string>
     <string name="appearance">Aspetto</string>
     <string name="storage">Archiviazione</string>
     <string name="your_data">I tuoi dati</string>
