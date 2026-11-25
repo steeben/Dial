@@ -24,6 +24,8 @@ import com.music.bitchord.data.model.MoodGenreSection
 import com.music.bitchord.data.model.PODCAST_SHOW_PREFIX
 import com.music.bitchord.data.model.playlistMoves
 import com.music.bitchord.data.model.PlaylistPrivacy
+import com.music.bitchord.data.model.RadioStation
+import com.music.bitchord.data.model.RadioStyle
 import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.SearchResult
 import com.music.bitchord.data.model.ShelfItem
@@ -836,8 +838,36 @@ object YtMusicRepository {
      * video — a station played on from a video stays videos.
      */
     suspend fun radio(videoId: String, preferVideo: Boolean = false): Result<List<Song>> =
+        radioStation(videoId, preferVideo).map { it.songs }
+
+    /**
+     * [radio], with the styles YouTube Music offers for the same seed: the
+     * chips above its own radio queue. The two come from one response.
+     */
+    suspend fun radioStation(videoId: String, preferVideo: Boolean = false): Result<RadioStation> =
         call("radio:$videoId:$preferVideo") {
-            InnertubeParser.parseWatchQueue(Innertube.next(videoId), preferVideo = preferVideo)
+            val response = Innertube.next(videoId)
+            RadioStation(
+                songs = InnertubeParser.parseWatchQueue(response, preferVideo = preferVideo),
+                styles = InnertubeParser.parseRadioStyles(response),
+            )
+        }.map { it.copy(songs = AiMusicFilter.songs(it.songs, keepVideoId = videoId)) }
+
+    /**
+     * What YouTube Music would play on after [videoId] with [style] selected:
+     * the same radio, with a different selection of songs. As [radio], the
+     * seed comes back first.
+     */
+    suspend fun radioInStyle(
+        videoId: String,
+        style: RadioStyle,
+        preferVideo: Boolean = false,
+    ): Result<List<Song>> =
+        call("radio:$videoId:${style.id}:$preferVideo") {
+            InnertubeParser.parseWatchQueue(
+                Innertube.nextPlaylist(style.target.playlistId, videoId, style.target.params),
+                preferVideo = preferVideo,
+            )
         }.map { AiMusicFilter.songs(it, keepVideoId = videoId) }
 
     /**

@@ -18,6 +18,7 @@ import com.music.bitchord.data.model.LikeStatus
 import com.music.bitchord.data.model.MoodGenre
 import com.music.bitchord.data.model.MoodGenreSection
 import com.music.bitchord.data.model.PODCAST_SHOW_PREFIX
+import com.music.bitchord.data.model.RadioStyle
 import com.music.bitchord.data.model.SearchResult
 import com.music.bitchord.data.model.ShelfItem
 import com.music.bitchord.data.model.ShelfLayout
@@ -1553,6 +1554,36 @@ object InnertubeParser {
         }
         return out.values.toList()
     }
+
+    /**
+     * The chips above a radio queue ("All", "Popular", "Deep cuts", "1990s"
+     * ...), from the same `next` response as its tracks. Each chip names the
+     * watch queue that gives its selection of songs for the seed. Empty for
+     * a queue that has none: an album, a playlist, a podcast.
+     *
+     * The chip YouTube marks as selected is the selection the response
+     * itself holds, which for a plain radio is "All".
+     */
+    fun parseRadioStyles(root: JsonElement): List<RadioStyle> =
+        collectRenderers(root, "musicQueueRenderer").firstOrNull()
+            .o("subHeaderChipCloud").o("chipCloudRenderer").a("chips").orEmpty()
+            .mapNotNull { element ->
+                val chip = element.o("chipCloudChipRenderer") ?: return@mapNotNull null
+                val label = chip.o("text").runs().trim().takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+                val endpoint = chip.o("navigationEndpoint").o("queueUpdateCommand")
+                    .o("fetchContentsCommand").o("watchEndpoint") ?: return@mapNotNull null
+                val playlistId = endpoint.s("playlistId")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                RadioStyle(
+                    id = chip.s("uniqueId")?.takeIf { it.isNotBlank() } ?: label,
+                    label = label,
+                    target = WatchTarget(
+                        playlistId = playlistId,
+                        params = endpoint.s("params")?.takeIf { it.isNotBlank() },
+                    ),
+                    isDefault = (chip["isSelected"] as? JsonPrimitive)?.content == "true",
+                )
+            }
+            .distinctBy { it.id }
 
     /** One watch-queue row as a [Song], or null for a row with no id or title. */
     private fun panelSong(renderer: JsonObject): Song? {
