@@ -23,6 +23,10 @@
     <string name="channel_count">%1$d ช่อง</string>
     <string name="choose_lyrics_provider">เลือกผู้ให้บริการเนื้อเพลง</string>
     <string name="clear">ล้าง</string>
+    <string name="close_player">ปิดโปรแกรมเล่น</string>
+    <string name="download">ดาวน์โหลด</string>
+    <string name="save_to_playlist">บันทึก</string>
+    <string name="start_radio">วิทยุ</string>
     <string name="close_lyrics">ปิดเนื้อเพลง</string>
     <string name="comments">ความคิดเห็น</string>
     <string name="comments_off">ความคิดเห็นถูกปิดอยู่</string>
@@ -98,6 +102,7 @@
     <string name="played_by">Played by %1$s</string>
     <string name="playing_from">Playing from %1$s</string>
     <string name="playing_radio">กำลังเล่นวิทยุ %1$s</string>
+    <string name="radio_named">วิทยุ %1$s</string>
     <string name="queue">คิว</string>
     <string name="remove_from_liked">นำออกจากเพลงที่ถูกใจ</string>
     <string name="remove_from_queue">นำออกจากคิว</string>

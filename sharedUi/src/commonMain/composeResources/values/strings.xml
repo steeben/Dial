@@ -37,6 +37,10 @@
     <string name="channel_count">%1$d ch</string>
     <string name="choose_lyrics_provider">Choose lyrics provider</string>
     <string name="clear">Clear</string>
+    <string name="close_player">Close the player</string>
+    <string name="download">Download</string>
+    <string name="save_to_playlist">Save</string>
+    <string name="start_radio">Radio</string>
     <string name="close_lyrics">Close lyrics</string>
     <string name="comments">Comments</string>
     <string name="comments_off">Comments are off</string>
@@ -126,6 +130,7 @@
     <string name="played_by">Played by %1$s</string>
     <string name="playing_from">Playing from %1$s</string>
     <string name="playing_radio">Playing %1$s Radio</string>
+    <string name="radio_named">%1$s Radio</string>
     <string name="queue">Queue</string>
     <string name="remove_from_liked">Remove from Liked Music</string>
     <string name="remove_from_queue">Remove from queue</string>

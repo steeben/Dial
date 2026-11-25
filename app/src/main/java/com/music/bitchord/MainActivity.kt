@@ -340,6 +340,13 @@ import com.music.bitchord.playback.toMediaItem
 import com.music.bitchord.playback.toSong
 import com.music.bitchord.playback.toDirectYouTubeMediaItem
 import com.music.bitchord.playback.toggleAutoplay
+import com.music.bitchord.playback.AutoplayStyles
+import com.music.bitchord.playback.setAutoplayStyle
+import com.music.bitchord.playback.shownStyleId
+import com.music.bitchord.data.settings.PlayerLayout
+import com.music.bitchord.ui.player.AutoplayStyleChip
+import com.music.bitchord.ui.player.PlayerAutoplayStyles
+import com.music.bitchord.ui.player.PlayerQuickActions
 import com.music.bitchord.playback.toggleShuffle
 import com.music.bitchord.playback.upgradeQuality
 import com.music.bitchord.playback.revertToOriginal
@@ -3215,10 +3222,78 @@ private fun BitChordApp(
                         it.memberId == playback.startedBy
                     }?.displayName?.takeIf(String::isNotBlank)
             }
+        // The YT Music layout's two rows of chips: the song's options under
+        // its title, and the AutoPlay styles in the queue. The Apple Music
+        // layout has neither, so nothing is made for it.
+        val playerLayout by AppSettings.playerLayout.collectAsStateWithLifecycle()
+        val ytMusicLayout = playerLayout == PlayerLayout.YT_MUSIC
+        val quickActions = if (ytMusicLayout) {
+            val onDevice = song.localUri != null
+            val downloaded = song.videoId in savedDownloads
+            PlayerQuickActions(
+                onSave = {
+                    if (onDevice) {
+                        offlinePlaylistTarget = listOf(song)
+                    } else {
+                        viewModel.loadPlaylists()
+                        playlistTarget = listOf(song)
+                    }
+                },
+                // A link needs a YouTube id, which a file on the device does not have.
+                onShare = if (!onDevice && song.videoId.isNotBlank()) {
+                    {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/watch?v=${song.videoId}")
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, song.title))
+                    }
+                } else {
+                    null
+                },
+                onDownload = if (!onDevice) {
+                    { if (!downloaded) downloadSong(song) }
+                } else {
+                    null
+                },
+                downloaded = downloaded,
+                onStartRadio = if (!onDevice && song.videoId.isNotBlank()) {
+                    { startRadio(song) }
+                } else {
+                    null
+                },
+            )
+        } else {
+            null
+        }
+        // A party's AutoPlay is shared, so a party has no styles to select.
+        val stylesWanted = ytMusicLayout && autoplayEnabled && !partyState.inParty
+        val styleOffer by AutoplayStyles.offer.collectAsStateWithLifecycle()
+        val chosenStyle by AutoplayStyles.chosen.collectAsStateWithLifecycle()
+        // The song whose styles the queue asked for: they are read only then.
+        var stylesAskedFor by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(stylesAskedFor, song.videoId, stylesWanted) {
+            if (stylesWanted && stylesAskedFor == song.videoId) AutoplayStyles.show(song)
+        }
+        val autoplayStyles = if (stylesWanted) {
+            val styles = styleOffer?.takeIf { it.songId == song.videoId }?.styles.orEmpty()
+            PlayerAutoplayStyles(
+                songId = song.videoId,
+                chips = styles.map { AutoplayStyleChip(it.id, it.label) },
+                selectedId = shownStyleId(chosenStyle, styles),
+                onSelect = { id -> controller?.setAutoplayStyle(id) },
+                onShown = { stylesAskedFor = song.videoId },
+            )
+        } else {
+            null
+        }
         NowPlayingScreen(
             song = displayedSong,
             playedBy = playedBy,
             accountName = account?.name,
+            quickActions = quickActions,
+            autoplayStyles = autoplayStyles,
+            onCollapse = dismissPlayer,
             windowWidth = windowWidth,
             windowHeight = windowHeight,
             isPlaying = player.isPlaying,

@@ -23,6 +23,10 @@
     <string name="channel_count">%1$d kan</string>
     <string name="choose_lyrics_provider">Wybierz źródło tekstów</string>
     <string name="clear">Wyczyść</string>
+    <string name="close_player">Zamknij odtwarzacz</string>
+    <string name="download">Pobierz</string>
+    <string name="save_to_playlist">Zapisz</string>
+    <string name="start_radio">Radio</string>
     <string name="close_lyrics">Zamknij teksty</string>
     <string name="comments">Komentarze</string>
     <string name="comments_off">Komentarze są wyłączone</string>
@@ -98,6 +102,7 @@
     <string name="played_by">Played by %1$s</string>
     <string name="playing_from">Playing from %1$s</string>
     <string name="playing_radio">Odtwarzanie radia %1$s</string>
+    <string name="radio_named">Radio %1$s</string>
     <string name="queue">Kolejka</string>
     <string name="remove_from_liked">Usuń z Polubionych Utworów</string>
     <string name="remove_from_queue">Usuń z kolejki</string>

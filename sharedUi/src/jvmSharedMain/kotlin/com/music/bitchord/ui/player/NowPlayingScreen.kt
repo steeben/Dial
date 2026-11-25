@@ -192,6 +192,7 @@ import com.music.bitchord.data.VideoCanvases
 import com.music.bitchord.data.lyrics.LyricLine
 import com.music.bitchord.data.lyrics.LyricsSource
 import com.music.bitchord.data.settings.LastPlayerScreen
+import com.music.bitchord.data.settings.PlayerLayout
 import com.music.bitchord.data.settings.PlayerTheme
 import com.music.bitchord.data.model.LikeStatus
 import com.music.bitchord.data.model.PlaybackSourceType
@@ -1168,6 +1169,12 @@ fun NowPlayingScreen(
     lyricsUnavailable: Boolean,
     lyricsOffsetOpen: Boolean,
     onDismissLyricsOffset: () -> Unit,
+    /** What the song's option chips do in the YT Music layout — see [PlayerQuickActions]. */
+    quickActions: PlayerQuickActions? = null,
+    /** The chips above AutoPlay's songs in the YT Music layout's queue. */
+    autoplayStyles: PlayerAutoplayStyles? = null,
+    /** Puts the player away, from the YT Music layout's close button. Null leaves the button out. */
+    onCollapse: (() -> Unit)? = null,
     /** The width of the window the player is in — see [fullBleedArtworkAvailable]. */
     windowWidth: Dp,
     /**
@@ -1333,6 +1340,10 @@ fun NowPlayingScreen(
     // because it runs a Canvas (or a music video standing in for one) under
     // the whole screen, so the stand-in is looked for here as on a phone.
     val landscapeLayout = landscapePlayerAvailable(windowWidth, windowHeight)
+    // The YT Music layout is a shape of the upright player. Sideways, the
+    // player keeps its two columns, whatever the layout setting is.
+    val playerLayout by PlayerSettings.playerLayout.collectAsStateWithLifecycle()
+    val ytMusicLayout = playerLayout == PlayerLayout.YT_MUSIC && !landscapeLayout
     // Sideways with the lyrics open, a music video is not the whole screen
     // but the left of it, with the lyrics on the right: it runs as the clip
     // behind the landscape player, which draws it aside for them — see
@@ -1346,10 +1357,12 @@ fun NowPlayingScreen(
     // an episode's picture is the episode.
     val episodeVideo = musicVideo && song.isEpisode
     val videoBesideLyrics = musicVideo && !episodeVideo && landscapeLayout && lyricsOpen
+    // The YT Music layout has no clip under the whole screen: there a music
+    // video keeps its 16:9 picture, where the cover is.
     val videoAsCanvas = musicVideo && if (episodeVideo) {
         !landscapeLayout
     } else {
-        (playerFillsWindow(windowWidth) && videoArtAllowed) || videoBesideLyrics
+        (playerFillsWindow(windowWidth) && videoArtAllowed && !ytMusicLayout) || videoBesideLyrics
     }
     val videoMode = musicVideo && !videoAsCanvas
     val clipBehindPlayer = playerFillsWindow(windowWidth) || landscapeLayout
@@ -2058,7 +2071,8 @@ fun NowPlayingScreen(
     // still-art full-bleed preference. Other providers and static artwork keep
     // answering to that preference exactly as before.
     // A music video sits in the card's place at its own 16:9, never full bleed.
-    val heroMode = !videoMode && (
+    // Nor is the YT Music layout: its cover is a card, and a clip plays in it.
+    val heroMode = !videoMode && !ytMusicLayout && (
         spotifyCanvasOnPhone ||
             (fullBleedArt && playerFillsWindow(windowWidth))
         )
@@ -2211,7 +2225,9 @@ fun NowPlayingScreen(
             canvasCompactMode -> 0.15f
             else -> 0f
         },
-        if (lyricsOpen || queueOpen) SUBVIEW_INK_DIM else 0f,
+        // The YT Music layout stands on the backdrop the lyrics and the queue
+        // have, so its ink is theirs in every state.
+        if (lyricsOpen || queueOpen || ytMusicLayout) SUBVIEW_INK_DIM else 0f,
         if (canvasPanelBackdrop) CANVAS_PANEL_DIM else 0f,
         if (landscapeBackdropClip != null) {
             landscapeCanvasDim(panelOpen = lyricsOpen || queueOpen)
@@ -2222,7 +2238,7 @@ fun NowPlayingScreen(
     // half), so [canvasRendered] drops; those screens take the player's own
     // light-over-a-clip verdict, so the answer from before they opened is held.
     // A song skipped to while they are up counts as over its clip if it has one.
-    val inkPanelOpen = lyricsOpen || queueOpen
+    val inkPanelOpen = lyricsOpen || queueOpen || ytMusicLayout
     val clipOnPlayer = remember(canvas?.url) { mutableStateOf(canvas != null) }
     val inkOverClip = if (inkPanelOpen) clipOnPlayer.value else canvas != null && canvasRendered
     SideEffect { if (!inkPanelOpen) clipOnPlayer.value = canvas != null && canvasRendered }
@@ -2749,7 +2765,7 @@ fun NowPlayingScreen(
         // Straight away when it is the main player's backdrop too: the decode
         // and blur run off the main thread.
         prepare = simpleBackdrop || landscape || tabletArtworkBackdrop || lyricsOpen || queueOpen ||
-            playerPrewarmStage >= 1,
+            ytMusicLayout || playerPrewarmStage >= 1,
     )
     // One movable Image node, not two backdrop call sites. Compose carries it
     // between the portrait and landscape players; only the cached bitmap
@@ -3410,6 +3426,227 @@ fun NowPlayingScreen(
                 LandscapeVideoFullscreenOverlay(onExit = { landscapeVideoFullscreenAsked = false })
             }
         }
+            playerOverlays()
+        }
+        }
+        return@ProvidePlayerInk
+    }
+
+    // The YT Music layout — see YtMusicPlayer.kt. A branch of its own, as the
+    // landscape player is: it has none of the Apple Music layout's moving
+    // parts (the sleeve that becomes a header, the deck, the full-screen
+    // clip), only the song's state, which it is given.
+    if (ytMusicLayout) {
+        // A method of its own, not part of the one above: see [SeparateMethod].
+        SeparateMethod {
+        val versionAligning by PlayerSettings.versionAlignmentInProgress.collectAsStateWithLifecycle()
+        val transitionWindow by PlayerSettings.smartTransitionWindow.collectAsStateWithLifecycle()
+        // This layout does not fly its cover to the mini player. The panel
+        // around the player brings the whole of it in and out, which it does
+        // for a player that is not attached to the dock.
+        SideEffect { dock?.let { if (it.attached) it.attached = false } }
+        val playerLanded by remember(dock) {
+            derivedStateOf { dock == null || dock.openFraction() >= 1f }
+        }
+        // On the way to or from the mini player the page is under the bar.
+        StatusBarIcons(dark = if (playerLanded) LocalPlayerInkDark.current else PageStatusBarIcons.dark)
+        // "Hide status bar", as the Apple Music layout does it: the bar goes
+        // only when the player has landed, and comes back when it starts down.
+        var statusBarAway by statusBarAwayState
+        LaunchedEffect(playerLanded, hidePlayerStatusBar, dock == null) {
+            if (playerLanded && hidePlayerStatusBar) {
+                delay(if (dock == null) 450L else 120L)
+                statusBarAway = true
+            } else {
+                statusBarAway = false
+            }
+        }
+        HideStatusBar(hidden = statusBarAway)
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .leaveTopEdgeToSystem(active = { statusBarAwayState.value }, edge = statusBarTop),
+        ) {
+            // Everything but the drawers and popups below, recorded whole for
+            // their glass to see the player through — see [PlayerGlass.menuSource].
+            Box(Modifier.fillMaxSize().playerMenuSource()) {
+                YtMusicPlayer(
+                    song = song,
+                    isPlaying = isPlaying,
+                    isLoading = isLoading || audioVersionSwitching,
+                    queue = queue,
+                    queueIndex = queueIndex,
+                    hasNext = hasNext,
+                    repeatMode = repeatMode,
+                    shuffleEnabled = shuffleEnabled,
+                    autoplayEnabled = autoplayEnabled,
+                    // No account to like against for a guest, but a file on
+                    // the device is liked on the device.
+                    canLike = signedIn || song.localUri != null,
+                    liked = likeStatus == LikeStatus.LIKE,
+                    controlsLocked = controlsLocked,
+                    caption = if (hideSongStatus) null else playbackOriginText(song, playedBy),
+                    art = art,
+                    canvas = canvas,
+                    canvasRendered = canvasRendered,
+                    onCanvasRenderedChange = { canvasRendered = it },
+                    videoMode = videoMode,
+                    videoRendered = videoRendered,
+                    onVideoRenderedChange = { videoRendered = it },
+                    onVideoFullscreen = screenOrientation::landscape,
+                    lastCoverHidden = { sleeveClipUp[0] },
+                    statusBarTop = statusBarTop,
+                    showRevertCue = showRevertCue,
+                    comments = song.isEpisode,
+                    lyricsOpen = lyricsOpen,
+                    queueOpen = queueOpen,
+                    onOpenLyrics = openLyrics,
+                    onCloseLyrics = closeLyrics,
+                    onQueueOpenChange = { queueOpen = it },
+                    artGesture = skipSwipeGesture,
+                    artOffset = { swipeSettle.value },
+                    quickActions = quickActions,
+                    autoplayStyles = autoplayStyles,
+                    onCollapse = onCollapse,
+                    onToggleLike = onToggleLike,
+                    onPlayPause = onPlayPause,
+                    onNext = onNext,
+                    onPrevious = onPrevious,
+                    onToggleShuffle = onToggleShuffle,
+                    onCycleRepeat = onCycleRepeat,
+                    onToggleAutoplay = onToggleAutoplay,
+                    onJumpTo = onJumpTo,
+                    onRemoveFromQueue = onRemoveFromQueue,
+                    onMoveInQueue = onMoveInQueue,
+                    onQueueDragActiveChange = onQueueDragActiveChange,
+                    onClearQueue = onClearQueue,
+                    onOpenMenu = onOpenMenu,
+                    onOpenAlbum = onOpenAlbum,
+                    onOpenArtist = onOpenArtist,
+                    onOpenCaption = openPlaybackOrigin,
+                    onOpenOutput = openAudioOutput,
+                    onListenTogether = onListenTogether,
+                    onOpenListenTogetherMembers = openListenTogetherMembers,
+                    backdrop = { backdropModifier ->
+                        // The drawers' frost and the glass buttons both see
+                        // the player through this, as in the other layouts.
+                        val glass = LocalPlayerGlass.current
+                        Box(backdropModifier.hazeSource(playerHaze).let { glass?.source(it) ?: it }) {
+                            fullArtworkBlurContent(Modifier.fillMaxSize())
+                        }
+                    },
+                    scrubber = {
+                        PlayerScrubber(
+                            shown = shown,
+                            durationMs = barDurationMs,
+                            loading = versionAligning || audioVersionSwitching,
+                            mixing = mixing && !scrub.scrubbing,
+                            transitionWindow = transitionWindow
+                                ?.takeIf { !scrub.scrubbing && it.end > it.start }
+                                ?.let { it.start..it.end },
+                            onScrub = onScrub,
+                            onScrubFinished = onScrubFinished,
+                            waves = wavyProgressBar,
+                            glow = glowProgressBar,
+                            waveArtwork = remoteArt,
+                            playing = isPlaying && position.advancing,
+                        ) {
+                            PlaybackQualityLabel(
+                                song = song,
+                                isLoading = isLoading,
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .padding(horizontal = 8.dp),
+                            )
+                        }
+                    },
+                    lyricStrip = if (lyricStripShown) {
+                        {
+                            CurrentLyricStrip(
+                                lines = lyricsTranslation.displayedLyrics,
+                                trackKey = song.videoId,
+                                playhead = lyricsPlayhead,
+                                isPlaying = isPlaying && position.advancing,
+                                durationMs = durationMs,
+                                lyricsUnavailable = lyricsUnavailable,
+                                loadingText = lyricsLoadingText,
+                                onClick = openLyrics,
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    lyricsPane = {
+                        // The landscape player's lyrics pane: the sheet, and
+                        // under it the romanize, source and translate bar.
+                        LandscapeLyricsPane(
+                            hasLyrics = lyricsTranslation.displayedLyrics.isNotEmpty(),
+                            placeholder = if (lyricsInstrumental) {
+                                stringResource(Res.string.lyrics_instrumental)
+                            } else if (lyricsUnavailable) {
+                                stringResource(Res.string.lyrics_not_available)
+                            } else {
+                                lyricsLoadingText
+                            },
+                            status = lyricsTranslation.status,
+                            onStatusClick = { showLyricsProviders = true },
+                            picking = lyricPicker.picking,
+                            pickBar = {
+                                LyricsPickBar(
+                                    shareEnabled = lyricPicker.picks.isNotEmpty() && !lyricPicker.overBudget,
+                                    onCancel = lyricPicker.cancel,
+                                    onShare = lyricPicker.share,
+                                )
+                            },
+                            romanizationToggle = {
+                                RomanizationToggleButton(
+                                    state = lyricsTranslation.romanizationState,
+                                    showingRomanization = lyricsTranslation.showingRomanization,
+                                    enabled = !lyrics.isNullOrEmpty(),
+                                    onClick = lyricsTranslation.toggleRomanization,
+                                )
+                            },
+                            translationToggle = {
+                                TranslationToggleButton(
+                                    state = lyricsTranslation.translationState,
+                                    showingTranslation = lyricsTranslation.showingTranslation,
+                                    enabled = !lyrics.isNullOrEmpty(),
+                                    onClick = lyricsTranslation.toggleTranslation,
+                                )
+                            },
+                        ) { panelModifier ->
+                            LyricsTranslationMotion(
+                                trigger = lyricsTranslation.transition,
+                                reduceMotion = lyricsTranslation.reduceMotion,
+                                modifier = panelModifier,
+                            ) { particleProgress ->
+                                // The controls are not under these lines, so
+                                // there is nothing for a tap to bring back.
+                                LyricsPanel(
+                                    lines = lyrics.orEmpty(),
+                                    subLines = lyricsTranslation.subLines,
+                                    trackKey = song.videoId,
+                                    playhead = lyricsPlayhead,
+                                    looking = !lyricsUnavailable,
+                                    instrumental = lyricsInstrumental,
+                                    isPlaying = isPlaying && position.advancing,
+                                    onSeekToLine = seekToLyric,
+                                    controlsOpen = true,
+                                    onRevealControls = {},
+                                    onHideControls = {},
+                                    translationProgress = particleProgress,
+                                    canPick = lyricsShareEnabled,
+                                    picking = lyricPicker.picking,
+                                    picked = lyricPicker.picks,
+                                    onPickLine = lyricPicker.pick,
+                                    onTogglePick = lyricPicker.toggle,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
+                    },
+                )
+            }
             playerOverlays()
         }
         }

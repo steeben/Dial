@@ -23,6 +23,10 @@
     <string name="channel_count">%1$dch</string>
     <string name="choose_lyrics_provider">歌詞の提供元を選択</string>
     <string name="clear">消去</string>
+    <string name="close_player">プレーヤーを閉じる</string>
+    <string name="download">ダウンロード</string>
+    <string name="save_to_playlist">保存</string>
+    <string name="start_radio">ラジオ</string>
     <string name="close_lyrics">歌詞を閉じる</string>
     <string name="comments">コメント</string>
     <string name="comments_off">コメントはオフになっています</string>
@@ -98,6 +102,7 @@
     <string name="played_by">Played by %1$s</string>
     <string name="playing_from">Playing from %1$s</string>
     <string name="playing_radio">%1$s ラジオを再生中</string>
+    <string name="radio_named">%1$s ラジオ</string>
     <string name="queue">再生キュー</string>
     <string name="remove_from_liked">高く評価した音楽から削除</string>
     <string name="remove_from_queue">再生キューから削除</string>

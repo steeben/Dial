@@ -23,6 +23,10 @@
     <string name="channel_count">%1$d ערוצים</string>
     <string name="choose_lyrics_provider">בחירת ספק מילים</string>
     <string name="clear">ניקוי</string>
+    <string name="close_player">סגירת הנגן</string>
+    <string name="download">הורדה</string>
+    <string name="save_to_playlist">שמירה</string>
+    <string name="start_radio">רדיו</string>
     <string name="close_lyrics">סגור מילים</string>
     <string name="comments">תגובות</string>
     <string name="comments_off">התגובות כבויות</string>
@@ -98,6 +102,7 @@
     <string name="played_by">Played by %1$s</string>
     <string name="playing_from">Playing from %1$s</string>
     <string name="playing_radio">מנגן רדיו %1$s</string>
+    <string name="radio_named">רדיו %1$s</string>
     <string name="queue">תור ההשמעה</string>
     <string name="remove_from_liked">הסר ממוזיקה שאהבתי</string>
     <string name="remove_from_queue">הסר מהתור</string>
